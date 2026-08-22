@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(argparse)
 add_executable(Vicsek-TP2
     src/main.cpp
     src/neighbors.cpp
-    src/vicsek.cpp
+    src/flocking.cpp
 )
 
 target_include_directories(Vicsek-TP2 PRIVATE src)

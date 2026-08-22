@@ -8,7 +8,7 @@
 #include <argparse/argparse.hpp>
 
 #include "neighbors.hpp"
-#include "vicsek.hpp"
+#include "flocking.hpp"
 
 namespace {
 
@@ -39,6 +39,9 @@ int main(int argc, char* argv[])
     program.add_argument("--seed").default_value(1u).scan<'u', unsigned>().help("RNG seed");
     program.add_argument("--stride").default_value(1).scan<'i', int>().help("print/dump every stride steps");
     program.add_argument("--out").default_value(std::string("")).help("trajectory output path");
+    program.add_argument("--model")
+        .default_value(std::string("vicsek"))
+        .help("update rule: vicsek | voter");
 
     try {
         program.parse_args(argc, argv);
@@ -58,18 +61,22 @@ int main(int argc, char* argv[])
     const unsigned seed = program.get<unsigned>("--seed");
     const int stride = program.get<int>("--stride");
     const std::string out_path = program.get<std::string>("--out");
+    const std::string model = program.get<std::string>("--model");
 
+    if (model != "vicsek" && model != "voter") {
+        std::cerr << "error: --model must be vicsek or voter\n";
+        return 1;
+    }
     if (L <= 0.0 || rc <= 0.0 || v < 0.0 || eta < 0.0 || steps < 0 || stride < 1) {
         std::cerr << "error: invalid numeric parameters "
                      "(need L>0, rc>0, v>=0, eta>=0, steps>=0, stride>=1)\n";
         return 1;
     }
-    if (N > 0) {
-        // -N wins
-    } else if (rho <= 0.0) {
-        std::cerr << "error: --rho must be positive when -N is not set\n";
-        return 1;
-    } else {
+    if (N <= 0) {
+        if (rho <= 0.0) {
+            std::cerr << "error: --rho must be positive when -N is not set\n";
+            return 1;
+        }
         N = static_cast<int>(std::llround(rho * L * L));
     }
     if (N <= 0) {
@@ -83,11 +90,12 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    const VicsekParams params{L, rc, v, eta, M};
+    const FlockingParams params{L, rc, v, eta, M};
+    const bool use_voter = (model == "voter");
 
     std::vector<Particle> particles(static_cast<std::size_t>(N));
     std::mt19937 rng(seed);
-    init_vicsek(particles, L, rng);
+    init_flocking(particles, L, rng);
 
     std::ofstream traj;
     if (!out_path.empty()) {
@@ -98,9 +106,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    std::cout << "# L=" << L << " N=" << N << " rho=" << (static_cast<double>(N) / (L * L))
-              << " eta=" << eta << " v=" << v << " rc=" << rc << " M=" << M
-              << " steps=" << steps << " seed=" << seed << '\n';
+    std::cout << "# model=" << model << " L=" << L << " N=" << N
+              << " rho=" << (static_cast<double>(N) / (L * L)) << " eta=" << eta << " v=" << v
+              << " rc=" << rc << " M=" << M << " steps=" << steps << " seed=" << seed << '\n';
     std::cout << "t va\n";
 
     auto emit = [&](int t) {
@@ -111,7 +119,10 @@ int main(int argc, char* argv[])
 
     emit(0);
     for (int t = 1; t <= steps; ++t) {
-        step_vicsek(particles, params, rng);
+        if (use_voter)
+            step_voter(particles, params, rng);
+        else
+            step_vicsek(particles, params, rng);
         if (t % stride == 0 || t == steps) emit(t);
     }
 
