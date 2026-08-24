@@ -36,8 +36,9 @@ Para medir el tiempo de CIM puede utilizarse:
 ./build/OffLattice-TP2 --model [vicsek/votante] --rho [int] --eta [float] --steps [int] --stride [int] --out [path]  --cim_trace path/to/cim_out.txt
 ```
 De igual manera puede medirse el tiempo de CIM para el cálculo de clusters: 
-```bash
 
+```bash
+./build/Cluster-TP2 --in [path] --out [path] --L [int] --rc [int] --cim_trace path/to/cim_trace.txt
 ```
 
 ### Animaciones
