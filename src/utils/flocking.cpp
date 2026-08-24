@@ -44,10 +44,11 @@ void init_flocking(std::vector<Particle> &particles, double L,
 }
 
 void step_vicsek(std::vector<Particle> &particles, const FlockingParams &params,
-                 std::mt19937 &rng) {
+                 std::mt19937 &rng, CimStats *cim_stats) {
   const int n = static_cast<int>(particles.size());
-  const NeighborLists neighbors = cim_neighbors(particles, params.L, params.rc,
-                                                params.M, /*periodic=*/true);
+  const NeighborLists neighbors =
+      cim_neighbors(particles, params.L, params.rc, params.M, /*periodic=*/true,
+                    nullptr, cim_stats);
 
   std::uniform_real_distribution<double> uni_noise(-0.5 * params.eta,
                                                    0.5 * params.eta);
@@ -69,10 +70,11 @@ void step_vicsek(std::vector<Particle> &particles, const FlockingParams &params,
 }
 
 void step_voter(std::vector<Particle> &particles, const FlockingParams &params,
-                std::mt19937 &rng) {
+                std::mt19937 &rng, CimStats *cim_stats) {
   const int n = static_cast<int>(particles.size());
-  const NeighborLists neighbors = cim_neighbors(particles, params.L, params.rc,
-                                                params.M, /*periodic=*/true);
+  const NeighborLists neighbors =
+      cim_neighbors(particles, params.L, params.rc, params.M, /*periodic=*/true,
+                    nullptr, cim_stats);
 
   std::uniform_real_distribution<double> uni_noise(-0.5 * params.eta,
                                                    0.5 * params.eta);
@@ -92,7 +94,7 @@ void step_voter(std::vector<Particle> &particles, const FlockingParams &params,
   apply_move_and_wrap(particles, params, theta_new);
 }
 
-double polarization_va(const std::vector<Particle> &particles) {
+double polarization_va(std::vector<Particle> &particles) {
   if (particles.empty())
     return 0.0;
 

@@ -58,6 +58,9 @@ int main(int argc, char *argv[]) {
   program.add_argument("--model")
       .default_value(std::string("vicsek"))
       .help("update rule: vicsek | voter");
+  program.add_argument("--cim_trace")
+      .default_value(std::string(""))
+      .help("CIM timing output path");
 
   try {
     program.parse_args(argc, argv);
@@ -78,6 +81,7 @@ int main(int argc, char *argv[]) {
   const int stride = program.get<int>("--stride");
   const std::string out_path = program.get<std::string>("--out");
   const std::string model = program.get<std::string>("--model");
+  const std::string cim_trace_path = program.get<std::string>("--cim_trace");
 
   if (model != "vicsek" && model != "voter") {
     std::cerr << "error: --model must be vicsek or voter\n";
@@ -108,7 +112,31 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  std::ofstream cim_trace;
+  if (!cim_trace_path.empty()) {
+    const std::filesystem::path trace_path(cim_trace_path);
+    const std::filesystem::path trace_directory = trace_path.parent_path();
+    std::error_code trace_directory_error;
+    if (!trace_directory.empty() &&
+        !std::filesystem::create_directories(trace_directory,
+                                             trace_directory_error) &&
+        trace_directory_error) {
+      std::cerr << "error: cannot create CIM trace directory: "
+                << trace_directory << ": " << trace_directory_error.message()
+                << '\n';
+      return 1;
+    }
+    cim_trace.open(trace_path);
+    if (!cim_trace) {
+      std::cerr << "error: cannot open --cim_trace path: " << cim_trace_path
+                << '\n';
+      return 1;
+    }
+    cim_trace << "t cim_seconds\n";
+  }
+
   const FlockingParams params{L, rc, v, eta, M};
+  CimStats cim_stats;
   const bool use_voter = (model == "voter");
 
   std::vector<Particle> particles(static_cast<std::size_t>(N));
@@ -152,9 +180,12 @@ int main(int argc, char *argv[]) {
   emit(0);
   for (int t = 1; t <= steps; ++t) {
     if (use_voter)
-      step_voter(particles, params, rng);
+      step_voter(particles, params, rng, &cim_stats);
     else
-      step_vicsek(particles, params, rng);
+      step_vicsek(particles, params, rng, &cim_stats);
+    if (cim_trace.is_open())
+      cim_trace << t << ' ' << cim_stats.build_seconds + cim_stats.sweep_seconds
+                << '\n';
     if (t % stride == 0 || t == steps)
       emit(t);
   }

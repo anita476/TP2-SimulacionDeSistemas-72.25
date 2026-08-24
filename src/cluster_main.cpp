@@ -58,6 +58,10 @@ int main(int argc, char *argv[]) {
   program.add_argument("--rc").default_value(1.0).scan<'g', double>().help(
       "interaction radius");
 
+  program.add_argument("--cim_trace")
+      .default_value(std::string(""))
+      .help("CIM timing output path");
+
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception &error) {
@@ -67,8 +71,9 @@ int main(int argc, char *argv[]) {
 
   const std::string input_path = program.get<std::string>("--in");
   const std::string output_path = program.get<std::string>("--out");
-  const double box_side = program.get<double>("-L");
+  const double box_side = program.get<double>("--L");
   const double cutoff = program.get<double>("--rc");
+  const std::string cim_trace_path = program.get<std::string>("--cim_trace");
 
   if (box_side <= 0.0 || cutoff <= 0.0) {
     std::cerr << "error: --L and --rc must be positive\n";
@@ -98,13 +103,41 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  std::ofstream cim_trace;
+  if (!cim_trace_path.empty()) {
+    const std::filesystem::path trace_path(cim_trace_path);
+    const std::filesystem::path trace_directory = trace_path.parent_path();
+    std::error_code trace_directory_error;
+    if (!trace_directory.empty() &&
+        !std::filesystem::create_directories(trace_directory,
+                                             trace_directory_error) &&
+        trace_directory_error) {
+      std::cerr << "error: cannot create CIM trace directory: "
+                << trace_directory << ": " << trace_directory_error.message()
+                << '\n';
+      return 1;
+    }
+    cim_trace.open(trace_path);
+    if (!cim_trace) {
+      std::cerr << "error: cannot open --cim_trace path: " << cim_trace_path
+                << '\n';
+      return 1;
+    }
+    cim_trace << "t cim_seconds\n";
+  }
+
   try {
     int time = 0;
     std::vector<Particle> particles;
+    CimStats cim_stats;
     while (read_frame(input, time, particles)) {
       const int grid_side = cim_max_grid_side(box_side, cutoff, 0.0);
-      const NeighborLists neighbors = cim_neighbors(
-          particles, box_side, cutoff, grid_side, /*periodic=*/true);
+      const NeighborLists neighbors =
+          cim_neighbors(particles, box_side, cutoff, grid_side,
+                        /*periodic=*/true, nullptr, &cim_stats);
+      if (cim_trace.is_open())
+        cim_trace << time << ' '
+                  << cim_stats.build_seconds + cim_stats.sweep_seconds << '\n';
       const Clusters clusters = find_clusters(neighbors);
 
       result << "t " << time << '\n';
