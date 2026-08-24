@@ -26,7 +26,7 @@ Stdout: `t va`. Con `--out`: bloques `t / N / x y vx vy`.
 
 ```bash
 ./build/Vicsek-TP2 --model vicsek --rho 2 --eta 0.1 --steps 200 --seed 1 --stride 5 --out data/traj.txt
-python python/animate_flock.py --traj data/traj.txt --out data/flock.gif -L 10
+python scripts/animate_flock.py --traj data/traj.txt --out data/flock.gif -L 10
 ```
 
-`pip install -r python/requirements.txt` si falta matplotlib.
+`pip install -r scripts/requirements.txt` si falta matplotlib.

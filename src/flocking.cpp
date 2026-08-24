@@ -57,6 +57,7 @@ void step_vicsek(std::vector<Particle>& particles, const FlockingParams& params,
             sx += std::cos(particles[static_cast<std::size_t>(j)].theta);
             sy += std::sin(particles[static_cast<std::size_t>(j)].theta);
         }
+        /** /N avging not needed since atan2 is agnostic to it **/
         theta_new[static_cast<std::size_t>(i)] = std::atan2(sy, sx) + uni_noise(rng);
     }
 

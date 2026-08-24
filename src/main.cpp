@@ -1,5 +1,6 @@
 #include <cmath>
 #include <fstream>
+#include <filesystem>
 #include <iostream>
 #include <random>
 #include <string>
@@ -99,7 +100,17 @@ int main(int argc, char* argv[])
 
     std::ofstream traj;
     if (!out_path.empty()) {
-        traj.open(out_path);
+        const std::filesystem::path output_path(out_path);
+        const std::filesystem::path output_directory = output_path.parent_path();
+        std::error_code directory_error;
+        if (!output_directory.empty() &&
+            !std::filesystem::create_directories(output_directory, directory_error) && directory_error) {
+            std::cerr << "error: cannot create output directory: " << output_directory << ": "
+                      << directory_error.message() << '\n';
+            return 1;
+        }
+
+        traj.open(output_path);
         if (!traj) {
             std::cerr << "error: cannot open --out path: " << out_path << '\n';
             return 1;
