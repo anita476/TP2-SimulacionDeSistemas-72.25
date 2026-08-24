@@ -19,11 +19,19 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(argparse)
 
-add_executable(Vicsek-TP2
-    src/main.cpp
-    src/neighbors.cpp
-    src/flocking.cpp
+add_executable(OffLattice-TP2
+    src/offlattice_main.cpp
+    src/utils/neighbors.cpp
+    src/utils/flocking.cpp
 )
 
-target_include_directories(Vicsek-TP2 PRIVATE src)
-target_link_libraries(Vicsek-TP2 PRIVATE argparse)
+add_executable(Cluster-TP2
+    src/cluster_main.cpp
+    src/utils/cluster.cpp
+    src/utils/neighbors.cpp
+)
+
+target_include_directories(OffLattice-TP2 PRIVATE src/utils/include)
+target_link_libraries(OffLattice-TP2 PRIVATE argparse)
+target_include_directories(Cluster-TP2 PRIVATE src/utils/include)
+target_link_libraries(Cluster-TP2 PRIVATE argparse)

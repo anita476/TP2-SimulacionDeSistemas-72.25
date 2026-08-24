@@ -30,3 +30,12 @@ python scripts/animate_flock.py --traj data/traj.txt --out data/flock.gif -L 10
 ```
 
 `pip install -r scripts/requirements.txt` si falta matplotlib.
+
+## Calcular clusters
+
+```bash
+./build/Cluster-TP2 --in data/traj.txt --out data/clusters.txt -L 10 --rc 1
+```
+
+La salida contiene, para cada tiempo, la cantidad de clusters, el observable
+`S` (tamaño del cluster más grande sobre el total) y los IDs de sus nodos.
