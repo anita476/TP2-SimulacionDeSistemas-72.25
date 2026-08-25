@@ -9,8 +9,17 @@ Simulación de Sistemas — 72.25 — ITBA
 
 ## Compilación
 
+Para el programa principal:
+
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
+```
+Luego para las animaciones y gráficos:
+
+```bash
+python3 -m venv .venv
+source /path/to/.venv/activate
+pip install -r scripts/requirements.txt
 ```
 
 ## Ejecución
@@ -27,7 +36,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
 
 Defaults (teórica): `L=10`, `v=0.03` (`-v` / `--speed`), `rc=1`, `dt=1`, `--model vicsek`.
 
-Stdout: `t va`. Con `--out`: bloques `t / N / x y vx vy`.
+Stdout: `t va`. Con `--out`: bloques `t / N / va / x y vx vy`.
 
 ### Tiempos
 Para medir el tiempo de CIM puede utilizarse: 
@@ -44,11 +53,9 @@ De igual manera puede medirse el tiempo de CIM para el cálculo de clusters:
 ### Animaciones
 
 ```bash
-./build/OffLatice-TP2 --model vicsek --rho 2 --eta 0.1 --steps 200 --seed 1 --stride 5 --out data/traj.txt
+./build/OffLattice-TP2 --model vicsek --rho 2 --eta 0.1 --steps 500 --seed 10--stride 5 --out data/traj.txt
 python scripts/animate_flock.py --traj data/traj.txt --out data/flock.gif -L 10
 ```
-
-`pip install -r scripts/requirements.txt` si falta matplotlib.
 
 ### Cálculo de clusters
 
@@ -58,3 +65,26 @@ python scripts/animate_flock.py --traj data/traj.txt --out data/flock.gif -L 10
 
 La salida contiene, para cada tiempo, la cantidad de clusters, el observable
 `S` (tamaño del cluster más grande sobre el total) y los IDs de sus nodos.
+
+### Experimentos repetidos
+
+Para ejecutar varias simulaciones con la misma configuración, calcular el
+promedio y la desviación estándar de `va`, y luego hacer lo mismo con `S`:
+
+```bash
+python3 scripts/offlatice_experiment_runner.py \
+	--runs 20 \
+	--offlattice-executable build/OffLattice-TP2 \
+	--cluster-executable build/Cluster-TP2 \
+	--output-dir data/experiment-output \
+	--model vicsek --rho 2 --eta 0.1 --steps 500
+```
+
+Cada corrida se guarda como `trajectories/run-N.txt` dentro de `--output-dir`,
+y los resultados de clusters dentro de `trajectories/cluster-results/`.
+Los archivos agregados `va.txt` y `cluster_s.txt` contienen `t average_va
+std_va` y `t average_s std_s`, respectivamente.
+
+
+## Reproducción de Resultado
+> Para ejecutar el paso a paso utilizado para la presentación e informes ver `docs/Steps.md`

@@ -13,10 +13,11 @@
 
 namespace {
 
-void write_frame(std::ostream &out, int t,
+void write_frame(std::ostream &out, int t, double va,
                  const std::vector<Particle> &particles, double v) {
   out << "t " << t << '\n';
   out << particles.size() << '\n';
+  out << "va " << va << '\n';
   for (const Particle &p : particles) {
     const double vx = v * std::cos(p.theta);
     const double vy = v * std::sin(p.theta);
@@ -174,7 +175,7 @@ int main(int argc, char *argv[]) {
     const double va = polarization_va(particles);
     std::cout << t << ' ' << va << '\n';
     if (traj.is_open())
-      write_frame(traj, t, particles, v);
+      write_frame(traj, t, va, particles, v);
   };
 
   emit(0);

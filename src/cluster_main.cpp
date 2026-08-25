@@ -32,6 +32,12 @@ bool read_frame(std::istream &input, int &time,
     throw std::runtime_error("expected a non-negative particle count after t=" +
                              std::to_string(time));
 
+  std::string observable_name;
+  double va = 0.0;
+  if (!(input >> observable_name >> va) || observable_name != "va")
+    throw std::runtime_error("expected 'va <value>' after particle count at t=" +
+                             std::to_string(time));
+
   particles.resize(static_cast<std::size_t>(count));
   for (Particle &particle : particles) {
     double vx = 0.0;

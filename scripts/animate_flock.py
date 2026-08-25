@@ -3,6 +3,7 @@
 Format per frame:
     t <step>
     N
+    va <polarization>
     x y vx vy
     ...
 """
@@ -46,6 +47,17 @@ def read_trajectory(path: str) -> list[tuple[int, np.ndarray]]:
             if not n_line:
                 sys.exit(f"{path}: missing N after t={t}")
             n = int(n_line.strip())
+
+            va_line = fh.readline()
+            if not va_line:
+                sys.exit(f"{path}: missing va after t={t}")
+            va_parts = va_line.split()
+            if len(va_parts) != 2 or va_parts[0] != "va":
+                sys.exit(f"{path}: expected 'va <value>' after t={t}, got {va_line!r}")
+            try:
+                float(va_parts[1])
+            except ValueError:
+                sys.exit(f"{path}: invalid va value at t={t}: {va_parts[1]!r}")
 
             rows = []
             for _ in range(n):

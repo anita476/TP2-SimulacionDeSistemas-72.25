@@ -94,7 +94,7 @@ void step_voter(std::vector<Particle> &particles, const FlockingParams &params,
   apply_move_and_wrap(particles, params, theta_new);
 }
 
-double polarization_va(std::vector<Particle> &particles) {
+double polarization_va(const std::vector<Particle> &particles) {
   if (particles.empty())
     return 0.0;
 
