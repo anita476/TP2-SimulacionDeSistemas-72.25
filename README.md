@@ -41,9 +41,9 @@ Stdout: `t va`. Con `--out`: bloques `t / N / va / x y vx vy`.
 ### Evolución de va (punto b)
 
 El escalar de polarización se promedia solo en el estacionario. $t^*$ es el
-primer tiempo desde el cual $|v_a(t)-\mu_\infty|\le\epsilon$ hasta el final,
-donde $\mu_\infty$ es la media de los últimos `epochs` pasos. Un transitorio
-queda fuera de esa banda.
+primer tiempo desde el cual $|v_a(t)-\mu|\le\epsilon$ hasta el final, donde
+$\mu$ es la media de $v_a$ desde ese $t^*$ hasta el último paso. `epochs` es
+la longitud mínima de ese sufijo. Un transitorio queda fuera de esa banda.
 
 Casos característicos: Vicsek y votante, $\rho=2,4,8$, $\eta=0.1$. $L=10$,
 10 corridas, 4000 pasos, $\epsilon=0.08$, `epochs=200`.

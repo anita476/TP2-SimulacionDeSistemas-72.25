@@ -156,8 +156,8 @@ def plot_grid(rows: list[dict[str, object]], model: str, output: Path, epsilon: 
     fig.legend(handles, labels, loc="upper center", ncol=3, frameon=True)
     fig.suptitle(
         f"Evoluciones características de $v_a$ ({model})\n"
-        f"estacionario: $|v_a(t)-\\mu_\\infty|\\leq\\epsilon$={epsilon:g} hasta el final, "
-        f"$\\mu_\\infty$ = media de los últimos {epochs} pasos",
+        f"estacionario: $|v_a(t)-\\mu|\\leq\\epsilon$={epsilon:g} hasta el final, "
+        f"$\\mu$ = media de $t^*$ a $t_\\mathrm{{final}}$, mínimo {epochs} pasos",
         y=1.02,
     )
     fig.tight_layout()

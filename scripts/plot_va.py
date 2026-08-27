@@ -43,11 +43,10 @@ def read_va(path: Path) -> tuple[list[int], list[float], list[float]]:
 
 
 def find_stationary(times: list[int], averages: list[float], epsilon: float, epochs: int) -> int | None:
-    """Return the first t after which the series stays within epsilon of the late-time mean.
+    """Return the first t after which the series stays within epsilon of its suffix mean.
 
-    The late-time mean is the average of the last `epochs` samples. Using that
-    fixed reference (not a sliding window) keeps a slow rise out of the
-    stationary region, and a noisy but already-flat series can start at t=0.
+    The reference is the mean from that t to the end, not a short local window
+    and not the last `epochs` samples alone. `epochs` is the minimum suffix length.
     """
     if epsilon < 0:
         raise ValueError("epsilon must be non-negative")
@@ -57,10 +56,10 @@ def find_stationary(times: list[int], averages: list[float], epsilon: float, epo
     length = len(averages)
     if length < epochs:
         return None
-    tail = averages[-epochs:]
-    late_mean = sum(tail) / epochs
     for index in range(length - epochs + 1):
-        if all(abs(value - late_mean) <= epsilon for value in averages[index:]):
+        rest = averages[index:]
+        suffix_mean = sum(rest) / len(rest)
+        if all(abs(value - suffix_mean) <= epsilon for value in rest):
             return times[index]
     return None
 
@@ -110,8 +109,8 @@ def main() -> None:
     )
     parser.add_argument("--t-min", "--t_min", type=int, help="first time to plot (inclusive)")
     parser.add_argument("--t-max", "--t_max", type=int, help="last time to plot (inclusive)")
-    parser.add_argument("--epsilon", type=float, required=True, help="maximum distance from the late-time mean")
-    parser.add_argument("--epochs", type=int, required=True, help="samples used for the late-time mean and minimum remaining length")
+    parser.add_argument("--epsilon", type=float, required=True, help="maximum distance from the mean of t* to the end")
+    parser.add_argument("--epochs", type=int, required=True, help="minimum samples from t* to the end")
     parser.add_argument("--no-std", action="store_true", help="hide the standard-deviation band")
     args = parser.parse_args()
 

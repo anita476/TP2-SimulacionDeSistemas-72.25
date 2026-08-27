@@ -3,9 +3,10 @@
 ## Punto b: evolución temporal de $v_a$
 
 Criterio: $t^*$ es el primer tiempo tal que, de ahí hasta el final,
-$|v_a(t)-\mu_\infty|\le\epsilon$, con $\mu_\infty$ la media de los últimos
-`epochs` pasos. El escalar se promedia para $t \ge t^*$.
-$\epsilon=0.08$ (8 % del rango de $v_a$), `epochs=200`.
+$|v_a(t)-\mu|\le\epsilon$, con $\mu$ la media de $v_a$ desde ese $t^*$ hasta
+el último paso. `epochs` es la longitud mínima del sufijo. El escalar se
+promedia para $t \ge t^*$. $\epsilon=0.08$ (8 % del rango de $v_a$),
+`epochs=200`.
 
 ```bash
 python3 scripts/va_evolution_runner.py \
