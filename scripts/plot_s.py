@@ -6,12 +6,14 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
+from utils.stationary import find_stationary
+import matplotlib
 
 from utils.plot_style import BLUE, VERMILLION, new_figure, place_legend_below, save_figure, style_axes
 from utils.stationary import find_stationary
 
 
-def read_va(path: Path) -> tuple[list[int], list[float], list[float]]:
+def read_s(path: Path) -> tuple[list[int], list[float], list[float]]:
     """Lee las columnas t, average_s y std_s de un archivo agregado."""
     times: list[int] = []
     averages: list[float] = []
@@ -59,7 +61,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        times, averages, deviations = read_va(args.input)
+        times, averages, deviations =read_s(args.input)
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
