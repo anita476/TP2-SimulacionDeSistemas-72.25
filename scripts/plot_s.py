@@ -6,14 +6,14 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
-from utils.find_stationary import find_stationary
+from utils.stationary import find_stationary
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-def read_va(path: Path) -> tuple[list[int], list[float], list[float]]:
+def read_s(path: Path) -> tuple[list[int], list[float], list[float]]:
     """Read t, average_s, and std_s columns from an aggregate file."""
     times: list[int] = []
     averages: list[float] = []
@@ -61,7 +61,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        times, averages, deviations = read_va(args.input)
+        times, averages, deviations =read_s(args.input)
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
