@@ -1,6 +1,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <random>
 #include <string>
@@ -133,7 +134,8 @@ int main(int argc, char *argv[]) {
                 << '\n';
       return 1;
     }
-    cim_trace << "t cim_seconds\n";
+    cim_trace << std::setprecision(17);
+    cim_trace << "t build_seconds sweep_seconds\n";
   }
 
   const FlockingParams params{L, rc, v, eta, M};
@@ -179,16 +181,29 @@ int main(int argc, char *argv[]) {
   };
 
   emit(0);
+  double cim_build_total = 0.0;
+  double cim_sweep_total = 0.0;
   for (int t = 1; t <= steps; ++t) {
     if (use_voter)
       step_voter(particles, params, rng, &cim_stats);
     else
       step_vicsek(particles, params, rng, &cim_stats);
+    cim_build_total += cim_stats.build_seconds;
+    cim_sweep_total += cim_stats.sweep_seconds;
     if (cim_trace.is_open())
-      cim_trace << t << ' ' << cim_stats.build_seconds + cim_stats.sweep_seconds
-                << '\n';
+      cim_trace << t << ' ' << cim_stats.build_seconds << ' '
+                << cim_stats.sweep_seconds << '\n';
     if (t % stride == 0 || t == steps)
       emit(t);
+  }
+
+  if (cim_trace.is_open() && steps > 0) {
+    const double searches = static_cast<double>(steps);
+    std::cerr << std::setprecision(17)
+              << "CIM mean " << (cim_build_total + cim_sweep_total) / searches
+              << " s over " << steps << " searches | build "
+              << cim_build_total / searches << " s | sweep "
+              << cim_sweep_total / searches << " s\n";
   }
 
   return 0;

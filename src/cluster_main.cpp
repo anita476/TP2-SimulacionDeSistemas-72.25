@@ -3,6 +3,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -129,21 +130,28 @@ int main(int argc, char *argv[]) {
                 << '\n';
       return 1;
     }
-    cim_trace << "t cim_seconds\n";
+    cim_trace << std::setprecision(17);
+    cim_trace << "t build_seconds sweep_seconds\n";
   }
 
   try {
     int time = 0;
     std::vector<Particle> particles;
     CimStats cim_stats;
+    double cim_build_total = 0.0;
+    double cim_sweep_total = 0.0;
+    int cim_searches = 0;
     while (read_frame(input, time, particles)) {
       const int grid_side = cim_max_grid_side(box_side, cutoff, 0.0);
       const NeighborLists neighbors =
           cim_neighbors(particles, box_side, cutoff, grid_side,
                         /*periodic=*/true, nullptr, &cim_stats);
+      cim_build_total += cim_stats.build_seconds;
+      cim_sweep_total += cim_stats.sweep_seconds;
+      ++cim_searches;
       if (cim_trace.is_open())
-        cim_trace << time << ' '
-                  << cim_stats.build_seconds + cim_stats.sweep_seconds << '\n';
+        cim_trace << time << ' ' << cim_stats.build_seconds << ' '
+                  << cim_stats.sweep_seconds << '\n';
       const Clusters clusters = find_clusters(neighbors);
 
       result << "t " << time << '\n';
@@ -153,8 +161,16 @@ int main(int argc, char *argv[]) {
         result << "cluster " << index << ' ' << clusters[index].size();
         for (int node : clusters[index])
           result << ' ' << node;
-        result << '\n';
+          result << '\n';
       }
+    }
+    if (cim_trace.is_open() && cim_searches > 0) {
+      const double searches = static_cast<double>(cim_searches);
+      std::cerr << std::setprecision(17)
+                << "CIM mean " << (cim_build_total + cim_sweep_total) / searches
+                << " s over " << cim_searches << " searches | build "
+                << cim_build_total / searches << " s | sweep "
+                << cim_sweep_total / searches << " s\n";
     }
   } catch (const std::exception &error) {
     std::cerr << "error: " << error.what() << '\n';

@@ -28,32 +28,64 @@ pip install -r scripts/requirements.txt
 
 ```bash
 # Vicsek (promedio de vecinos)
-./build/OffLatice-TP2 --model vicsek --rho 2 --eta 0.1 --steps 500 --seed 1
+./build/OffLattice-TP2 --model vicsek --rho 2 --eta 0.1 --steps 500 --seed 1
 
 # Votante (copia un vecino al azar)
-./build/OffLatice-TP2 --model voter --rho 2 --eta 0.1 --steps 500 --seed 1 --out data/traj.txt
+./build/OffLattice-TP2 --model voter --rho 2 --eta 0.1 --steps 500 --seed 1 --out data/traj.txt
 ```
 
 Defaults (teórica): `L=10`, `v=0.03` (`-v` / `--speed`), `rc=1`, `dt=1`, `--model vicsek`.
 
 Stdout: `t va`. Con `--out`: bloques `t / N / va / x y vx vy`.
 
-### Tiempos
-Para medir el tiempo de CIM puede utilizarse: 
+### Tiempos de CIM (punto g)
+
+Las simulaciones del TP2 con `ρ = 2, 4, 8` y `L = 10` tienen `N = 200, 400, 800`,
+en el mismo rango que el barrido de `N` del TP1. `--cim_trace` escribe el tiempo de
+armar la grilla y de barrerla en cada paso. El runner corre esas tres simulaciones,
+repite el CIM del TP1 con el mismo `N` y `1000` búsquedas, y deja un agregado para
+la figura.
 
 ```bash
-./build/OffLattice-TP2 --model [vicsek/votante] --rho [int] --eta [float] --steps [int] --stride [int] --out [path]  --cim_trace path/to/cim_out.txt
+python3 scripts/cim_timing_runner.py \
+	--offlattice-executable build/OffLattice-TP2 \
+	--output-dir data/cim-timing \
+	-N 200 400 800 --steps 1000
+
+python3 scripts/plot_cim_times.py \
+	--input data/cim-timing/cim_times.txt \
+	--traces-dir data/cim-timing/traces \
+	--output data/cim-timing/tiempo_cim_vs_N.png
 ```
-De igual manera puede medirse el tiempo de CIM para el cálculo de clusters: 
+
+Si el TP1 está compilado en el directorio hermano, el runner lo detecta solo. Si no:
 
 ```bash
-./build/Cluster-TP2 --in [path] --out [path] --L [int] --rc [int] --cim_trace path/to/cim_trace.txt
+python3 scripts/cim_timing_runner.py \
+	--offlattice-executable build/OffLattice-TP2 \
+	--tp1-executable ../TP1-SimulacionDeSistemas-72.25/build/CIM-TP1 \
+	--output-dir data/cim-timing
 ```
+
+La comparación es `build + sweep` de una búsqueda CIM, no el tiempo total de Vicsek.
+El TP1 se mide con sus parámetros originales (`L=20`, `r ∈ [0.23, 0.26]`, paredes,
+`M=13`, `--method cim`), en la misma máquina. A igual `N` la densidad del TP2 es
+cuatro veces la del TP1, porque `L` es la mitad.
+
+Una sola corrida, sin el runner:
+
+```bash
+./build/OffLattice-TP2 --model vicsek --rho 2 --eta 0.1 --steps 1000 --cim_trace data/cim_trace.txt
+```
+
+El archivo tiene columnas `t build_seconds sweep_seconds`. Al terminar, stderr
+imprime el promedio. Cluster-TP2 acepta el mismo `--cim_trace` sobre una trayectoria
+ya generada con `--out`.
 
 ### Animaciones
 
 ```bash
-./build/OffLattice-TP2 --model vicsek --rho 2 --eta 0.1 --steps 500 --seed 10--stride 5 --out data/traj.txt
+./build/OffLattice-TP2 --model vicsek --rho 2 --eta 0.1 --steps 500 --seed 10 --stride 5 --out data/traj.txt
 python scripts/animate_flock.py --traj data/traj.txt --out data/flock.gif -L 10
 ```
 
