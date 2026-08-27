@@ -38,6 +38,31 @@ Defaults (teórica): `L=10`, `v=0.03` (`-v` / `--speed`), `rc=1`, `dt=1`, `--mod
 
 Stdout: `t va`. Con `--out`: bloques `t / N / va / x y vx vy`.
 
+### Evolución de va (punto b)
+
+El escalar de polarización se promedia solo en el estacionario. $t^*$ es el
+primer tiempo desde el cual $|v_a(t)-\mu_\infty|\le\epsilon$ hasta el final,
+donde $\mu_\infty$ es la media de los últimos `epochs` pasos. Un transitorio
+queda fuera de esa banda.
+
+Casos característicos: Vicsek y votante, $\rho=2,4,8$, $\eta=0.1$. $L=10$,
+10 corridas, 4000 pasos, $\epsilon=0.08$, `epochs=200`.
+
+```bash
+python3 scripts/va_evolution_runner.py \
+	--offlattice-executable build/OffLattice-TP2 \
+	--output-dir data/va-evolution
+```
+
+Salida: una curva por caso (con la vertical en $t^*$), las grillas
+`va_evolucion_vicsek.png` y `va_evolucion_voter.png`, y `stationary.txt` con
+$t^*$ y el $v_a$ escalar ($t \ge t^*$, media entre corridas). Una sola curva:
+
+```bash
+python3 scripts/plot_va.py --input data/va-evolution/vicsek_rho2_eta0.1/va.txt \
+	--epsilon 0.08 --epochs 200
+```
+
 ### Tiempos de CIM (punto g)
 
 Las simulaciones del TP2 con `ρ = 2, 4, 8` y `L = 10` tienen `N = 200, 400, 800`,

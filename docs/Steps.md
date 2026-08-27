@@ -1,5 +1,32 @@
 # Reproducción de Resultados
 
+## Punto b: evolución temporal de $v_a$
+
+Criterio: $t^*$ es el primer tiempo tal que, de ahí hasta el final,
+$|v_a(t)-\mu_\infty|\le\epsilon$, con $\mu_\infty$ la media de los últimos
+`epochs` pasos. El escalar se promedia para $t \ge t^*$.
+$\epsilon=0.08$ (8 % del rango de $v_a$), `epochs=200`.
+
+```bash
+python3 scripts/va_evolution_runner.py \
+	--offlattice-executable build/OffLattice-TP2 \
+	--output-dir data/va-evolution \
+	--models vicsek voter \
+	--rho 2 4 8 \
+	--eta 0.1 \
+	--steps 4000 --runs 10 \
+	--epsilon 0.08 --epochs 200
+```
+
+Figuras: `data/va-evolution/va_evolucion_vicsek.png`,
+`va_evolucion_voter.png`, y un PNG por caso. Tabla: `stationary.txt`.
+La vertical roja es el inicio del estacionario.
+
+En Vicsek $t^*$ cae ~100–150. El votante ordena más lento: a $\rho=2$,
+$t^*\approx 720$; a $\rho=4$ y $8$ el promedio entre corridas todavía se
+mueve cerca del final de los 4000 pasos, y el desvío del escalar es
+grande. El criterio es el mismo; no se adelanta $t^*$ a ojo.
+
 ## Punto g: tiempos de ejecución del CIM
 
 Las densidades del TP2 (`ρ = 2, 4, 8` con `L = 10`) dan `N = 200, 400, 800`,

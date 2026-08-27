@@ -43,18 +43,60 @@ def read_va(path: Path) -> tuple[list[int], list[float], list[float]]:
 
 
 def find_stationary(times: list[int], averages: list[float], epsilon: float, epochs: int) -> int | None:
-    """Return the first t whose next epochs averages are within epsilon of their mean."""
+    """Return the first t after which the series stays within epsilon of the late-time mean.
+
+    The late-time mean is the average of the last `epochs` samples. Using that
+    fixed reference (not a sliding window) keeps a slow rise out of the
+    stationary region, and a noisy but already-flat series can start at t=0.
+    """
     if epsilon < 0:
         raise ValueError("epsilon must be non-negative")
     if epochs < 1:
         raise ValueError("epochs must be at least 1")
 
-    for index in range(len(averages) - epochs + 1):
-        window = averages[index : index + epochs]
-        window_average = sum(window) / epochs
-        if all(abs(value - window_average) <= epsilon for value in window):
+    length = len(averages)
+    if length < epochs:
+        return None
+    tail = averages[-epochs:]
+    late_mean = sum(tail) / epochs
+    for index in range(length - epochs + 1):
+        if all(abs(value - late_mean) <= epsilon for value in averages[index:]):
             return times[index]
     return None
+
+
+def scalar_average(times: list[int], averages: list[float], stationary_time: int) -> float:
+    values = [average for time, average in zip(times, averages) if time >= stationary_time]
+    if not values:
+        raise ValueError(f"no samples at t >= {stationary_time}")
+    return sum(values) / len(values)
+
+
+def plot_va_on_ax(
+    ax,
+    times: list[int],
+    averages: list[float],
+    deviations: list[float],
+    stationary_time: int | None,
+    show_std: bool = True,
+    vline_with_time: bool = True,
+) -> None:
+    ax.plot(times, averages, color="#176b87", linewidth=2, label=r"$\langle v_a\rangle$")
+    if show_std:
+        lower = [average - deviation for average, deviation in zip(averages, deviations)]
+        upper = [average + deviation for average, deviation in zip(averages, deviations)]
+        ax.fill_between(times, lower, upper, color="#8ecae6", alpha=0.35, label="desvío entre corridas")
+    if stationary_time is not None:
+        line_label = "inicio del estacionario"
+        if vline_with_time:
+            line_label = f"{line_label} t={stationary_time}"
+        ax.axvline(stationary_time, color="red", linewidth=1.5, label=line_label)
+        ax.axvspan(stationary_time, times[-1], color="#d62728", alpha=0.06, zorder=0)
+    ax.set_xlabel("t")
+    ax.set_ylabel(r"$v_a$")
+    ax.set_ylim(0.0, 1.05)
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="best", fontsize=8)
 
 
 def main() -> None:
@@ -68,8 +110,8 @@ def main() -> None:
     )
     parser.add_argument("--t-min", "--t_min", type=int, help="first time to plot (inclusive)")
     parser.add_argument("--t-max", "--t_max", type=int, help="last time to plot (inclusive)")
-    parser.add_argument("--epsilon", type=float, required=True, help="maximum distance from the local average")
-    parser.add_argument("--epochs", type=int, required=True, help="number of consecutive averages to check")
+    parser.add_argument("--epsilon", type=float, required=True, help="maximum distance from the late-time mean")
+    parser.add_argument("--epochs", type=int, required=True, help="samples used for the late-time mean and minimum remaining length")
     parser.add_argument("--no-std", action="store_true", help="hide the standard-deviation band")
     args = parser.parse_args()
 
@@ -99,18 +141,8 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(9, 5.5))
-    ax.plot(times, averages, color="#176b87", linewidth=2, label="average VA")
-    if stationary_time is not None:
-        ax.axvline(stationary_time, color="red", linewidth=1.5, label=f"stationary t={stationary_time}")
-    if not args.no_std:
-        lower = [average - deviation for average, deviation in zip(averages, deviations)]
-        upper = [average + deviation for average, deviation in zip(averages, deviations)]
-        ax.fill_between(times, lower, upper, color="#8ecae6", alpha=0.35, label="std VA")
-    ax.set_xlabel("t")
-    ax.set_ylabel("average VA")
-    ax.set_title("Average VA over time")
-    ax.grid(True, alpha=0.25)
-    ax.legend()
+    plot_va_on_ax(ax, times, averages, deviations, stationary_time, show_std=not args.no_std)
+    ax.set_title("Evolución temporal de la polarización")
     fig.tight_layout()
     fig.savefig(output, dpi=150)
     plt.close(fig)
@@ -119,6 +151,7 @@ def main() -> None:
         print("no stationary time found")
     else:
         print(f"stationary time: {stationary_time}")
+        print(f"scalar va (t >= {stationary_time}): {scalar_average(times, averages, stationary_time):.6g}")
 
 
 if __name__ == "__main__":
