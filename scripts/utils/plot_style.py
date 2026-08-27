@@ -68,8 +68,8 @@ def apply_academic_style() -> None:
             "grid.linewidth": 0.7,
             "figure.facecolor": "white",
             "axes.facecolor": "white",
-            "figure.constrained_layout.h_pad": 0.18,
-            "figure.constrained_layout.w_pad": 0.08,
+            "figure.constrained_layout.h_pad": 0.08,
+            "figure.constrained_layout.w_pad": 0.06,
             "savefig.dpi": SAVE_DPI,
             "savefig.pad_inches": 0.2,
             "pdf.fonttype": 42,
@@ -96,7 +96,6 @@ def place_legend_below(target, *args, ncol: int = 1, **kwargs):
     kwargs.setdefault("loc", "outside lower center")
     kwargs.setdefault("ncol", ncol)
     kwargs.setdefault("frameon", True)
-    kwargs.setdefault("borderaxespad", 0.6)
     if not args and hasattr(target, "get_legend_handles_labels"):
         args = target.get_legend_handles_labels()
         target = target.figure
@@ -125,6 +124,7 @@ def apply_sci_axis(ax, axis: str = "y") -> None:
 def save_figure(fig, path: Path) -> None:
     apply_academic_style()
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=SAVE_DPI, facecolor="white")
+    fig.canvas.draw()
+    fig.savefig(path, dpi=SAVE_DPI, bbox_inches="tight", pad_inches=0.12, facecolor="white")
     plt.close(fig)
     print(f"se escribió {path}")

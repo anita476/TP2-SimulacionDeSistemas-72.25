@@ -40,13 +40,29 @@ def read_va(path: Path) -> tuple[list[int], list[float], list[float]]:
     return times, averages, deviations
 
 
-
-
 def scalar_average(times: list[int], averages: list[float], stationary_time: int) -> float:
     values = [average for time, average in zip(times, averages) if time >= stationary_time]
     if not values:
         raise ValueError(f"no hay muestras con t >= {stationary_time}")
     return sum(values) / len(values)
+
+
+def slice_va(
+    times: list[int],
+    averages: list[float],
+    deviations: list[float],
+    t_min: int | None,
+    t_max: int | None,
+) -> tuple[list[int], list[float], list[float]]:
+    selected = [
+        (time, average, deviation)
+        for time, average, deviation in zip(times, averages, deviations)
+        if (t_min is None or time >= t_min) and (t_max is None or time <= t_max)
+    ]
+    if not selected:
+        raise ValueError("el rango de tiempo elegido no contiene datos")
+    sliced_times, sliced_averages, sliced_deviations = map(list, zip(*selected))
+    return sliced_times, sliced_averages, sliced_deviations
 
 
 def plot_va_on_ax(
@@ -58,30 +74,32 @@ def plot_va_on_ax(
     show_std: bool = True,
     vline_with_time: bool = True,
     legend: bool = True,
+    color: str = BLUE,
+    vline_color: str = VERMILLION,
+    linestyle: str = "-",
+    label: str = "promedio entre corridas",
+    std_label: str | None = "desvío entre corridas",
+    show_vline: bool = True,
+    apply_limits: bool = True,
 ) -> None:
-    ax.plot(times, averages, color=BLUE, zorder=3, label="promedio entre corridas")
+    ax.plot(times, averages, color=color, linestyle=linestyle, zorder=3, label=label)
     if show_std:
         lower = [max(0.0, average - deviation) for average, deviation in zip(averages, deviations)]
         upper = [min(1.05, average + deviation) for average, deviation in zip(averages, deviations)]
-        ax.fill_between(
-            times,
-            lower,
-            upper,
-            color=BLUE,
-            alpha=0.22,
-            linewidth=0,
-            zorder=2,
-            label="desvío entre corridas",
-        )
-    if stationary_time is not None:
+        fill_kwargs = dict(color=color, alpha=0.18 if std_label is None else 0.22, linewidth=0, zorder=2)
+        if std_label is not None:
+            fill_kwargs["label"] = std_label
+        ax.fill_between(times, lower, upper, **fill_kwargs)
+    if show_vline and stationary_time is not None:
         line_label = "inicio del estacionario"
         if vline_with_time:
             line_label = rf"{line_label} ($t={stationary_time}$)"
-        ax.axvline(stationary_time, color=VERMILLION, linewidth=1.8, linestyle="--", zorder=4, label=line_label)
+        ax.axvline(stationary_time, color=vline_color, linewidth=1.8, linestyle="--", zorder=4, label=line_label)
     style_axes(ax, "tiempo (s)", "polarización")
-    ax.set_ylim(0.0, 1.05)
-    if times:
-        ax.set_xlim(times[0], times[-1])
+    if apply_limits:
+        ax.set_ylim(0.0, 1.05)
+        if times:
+            ax.set_xlim(times[0], times[-1])
     if legend:
         place_legend_below(ax, ncol=2)
 
@@ -110,17 +128,13 @@ def main() -> None:
     if args.t_min is not None and args.t_max is not None and args.t_min > args.t_max:
         parser.error("--t-min debe ser menor o igual que --t-max")
 
-    selected = [
-        (time, average, deviation)
-        for time, average, deviation in zip(times, averages, deviations)
-        if (args.t_min is None or time >= args.t_min) and (args.t_max is None or time <= args.t_max)
-    ]
-    if not selected:
-        parser.error("el rango de tiempo elegido no contiene datos")
-    times, averages, deviations = map(list, zip(*selected))
-
     try:
         stationary_time = find_stationary(times, averages, args.epsilon, args.epochs)
+    except ValueError as error:
+        parser.error(str(error))
+
+    try:
+        times, averages, deviations = slice_va(times, averages, deviations, args.t_min, args.t_max)
     except ValueError as error:
         parser.error(str(error))
 

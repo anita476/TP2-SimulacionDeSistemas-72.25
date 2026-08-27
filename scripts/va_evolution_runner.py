@@ -7,11 +7,9 @@ import argparse
 import statistics
 from pathlib import Path
 
-from utils.plot_style import apply_academic_style, place_legend_below, save_figure
-import matplotlib.pyplot as plt
-
 from offlatice_experiment_runner import aggregate, parse_va_output, run_command
-from plot_va import plot_va_on_ax, read_va, scalar_average
+from plot_va import plot_va_on_ax, read_va, scalar_average, slice_va
+from utils.plot_style import SERIES, new_figure, place_legend_below, save_figure
 from utils.stationary import find_stationary
 
 
@@ -98,61 +96,69 @@ def summarize_case(
     return row
 
 
-def plot_single(row: dict[str, object], output: Path) -> None:
+def plot_single(
+    row: dict[str, object],
+    output: Path,
+    t_min: int | None = None,
+    t_max: int | None = None,
+) -> None:
+    times, averages, deviations = slice_va(row["times"], row["averages"], row["deviations"], t_min, t_max)
     fig, ax = new_figure()
-    plot_va_on_ax(
-        ax,
-        row["times"],
-        row["averages"],
-        row["deviations"],
-        row["t_stat"],
-    )
+    plot_va_on_ax(ax, times, averages, deviations, row["t_stat"])
     save_figure(fig, output)
 
 
-def plot_grid(rows: list[dict[str, object]], model: str, output: Path) -> None:
-    selected = [row for row in rows if row["model"] == model]
-    if not selected:
+LINESTYLES = ("-", "--", "-.", ":")
+
+
+def overlay_zoom_end(rows: list[dict[str, object]]) -> int:
+    end = max(int(row["times"][-1]) for row in rows if row["times"])
+    stats = [int(row["t_stat"]) for row in rows if row["t_stat"] is not None]
+    if not stats:
+        return min(end, 800)
+    latest = max(stats)
+    earliest = min(stats)
+    if latest <= end // 4:
+        return min(end, max(400, 4 * latest))
+    return min(end, max(800, 2 * earliest))
+
+
+def plot_overlay(
+    rows: list[dict[str, object]],
+    output: Path,
+    t_min: int | None = None,
+    t_max: int | None = None,
+) -> None:
+    if not rows:
         return
-    rhos = sorted({float(row["rho"]) for row in selected})
-    etas = sorted({float(row["eta"]) for row in selected})
-    by_key = {(float(row["rho"]), float(row["eta"])): row for row in selected}
-    apply_academic_style()
-    fig, axes = plt.subplots(
-        len(rhos),
-        len(etas),
-        figsize=(7.2 * len(etas), 5.2 * len(rhos)),
-        sharex=True,
-        sharey=True,
-        squeeze=False,
-        layout="constrained",
-    )
-    for i, rho in enumerate(rhos):
-        for j, eta in enumerate(etas):
-            ax = axes[i][j]
-            row = by_key[(rho, eta)]
-            plot_va_on_ax(
-                ax,
-                row["times"],
-                row["averages"],
-                row["deviations"],
-                row["t_stat"],
-                vline_with_time=False,
-                legend=False,
-            )
-            ax.set_title(
-                rf"$\rho={rho:g}\,\mathrm{{m}}^{{-2}}$, $\eta={eta:g}\,\mathrm{{rad}}$",
-                pad=10,
-            )
-            if i < len(rhos) - 1:
-                ax.set_xlabel("")
-            if j > 0:
-                ax.set_ylabel("")
-    handles, labels = axes[0][0].get_legend_handles_labels()
-    place_legend_below(fig, handles, labels, ncol=3)
-    layout = fig.get_layout_engine()
-    if layout is not None:
-        layout.set(h_pad=0.4, w_pad=0.08, hspace=0.18, wspace=0.06)
+    rows = sorted(rows, key=lambda row: float(row["rho"]))
+    fig, ax = new_figure()
+    x_left = None
+    x_right = None
+    for index, row in enumerate(rows):
+        times, averages, deviations = slice_va(row["times"], row["averages"], row["deviations"], t_min, t_max)
+        color = SERIES[index % len(SERIES)]
+        plot_va_on_ax(
+            ax,
+            times,
+            averages,
+            deviations,
+            row["t_stat"],
+            color=color,
+            vline_color=color,
+            linestyle=LINESTYLES[index % len(LINESTYLES)],
+            label=rf"$\rho={float(row['rho']):g}\,\mathrm{{m}}^{{-2}}$",
+            std_label=None,
+            show_vline=False,
+            legend=False,
+            apply_limits=False,
+        )
+        x_left = times[0] if x_left is None else min(x_left, times[0])
+        x_right = times[-1] if x_right is None else max(x_right, times[-1])
+    ax.set_ylim(0.0, 1.05)
+    if x_left is not None and x_right is not None:
+        ax.set_xlim(x_left, x_right)
+    place_legend_below(ax, ncol=min(3, len(rows)))
     save_figure(fig, output)
 
 
@@ -190,6 +196,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-seed", type=int, default=1)
     parser.add_argument("--epsilon", type=float, default=0.08)
     parser.add_argument("--epochs", type=int, default=200)
+    parser.add_argument("--t-min", "--t_min", type=int, default=None, help="primer tiempo del recorte (inclusive)")
+    parser.add_argument("--t-max", "--t_max", type=int, default=None, help="último tiempo del recorte (inclusive); si se omite, el zoom usa 4 t*")
     parser.add_argument("--plot-only", action="store_true", help="reutilizar va.txt ya presente en --output-dir")
     return parser
 
@@ -203,6 +211,8 @@ def main() -> None:
     invalid = [name for name in args.models if name not in {"vicsek", "voter"}]
     if invalid:
         raise SystemExit(f"--models desconocidos {invalid}; usar vicsek y/o voter")
+    if args.t_min is not None and args.t_max is not None and args.t_min > args.t_max:
+        raise SystemExit("--t-min debe ser menor o igual que --t-max")
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -217,7 +227,20 @@ def main() -> None:
                 rows.append(row)
 
     for model in args.models:
-        plot_grid(rows, model, output_dir / f"va_evolucion_{model}.png")
+        by_eta: dict[float, list[dict[str, object]]] = {}
+        for row in rows:
+            if row["model"] == model:
+                by_eta.setdefault(float(row["eta"]), []).append(row)
+        for eta, group in by_eta.items():
+            suffix = "" if len(by_eta) == 1 else f"_eta{eta:g}"
+            plot_overlay(group, output_dir / f"va_evolucion_{model}{suffix}.png")
+            zoom_max = args.t_max if args.t_max is not None else overlay_zoom_end(group)
+            plot_overlay(
+                group,
+                output_dir / f"va_evolucion_{model}{suffix}_zoom.png",
+                t_min=args.t_min,
+                t_max=zoom_max,
+            )
     write_summary(output_dir / "stationary.txt", rows, args.epsilon, args.epochs)
 
     missing = [f"{row['model']} rho={row['rho']:g} eta={row['eta']:g}" for row in rows if row["t_stat"] is None]
