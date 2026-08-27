@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from offlatice_experiment_runner import aggregate, parse_va_output, run_command
 from plot_va import plot_va_on_ax, read_va, scalar_average
 from utils.stationary import find_stationary
+from utils.plot_style import new_figure, place_legend_below, save_figure
 
 
 def write_run_va(path: Path, values: dict[int, float]) -> None:
