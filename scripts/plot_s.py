@@ -89,7 +89,7 @@ def main() -> None:
     ax.plot(times, averages, color=BLUE, zorder=3, label="promedio entre corridas")
     if not args.no_std:
         lower = [max(0.0, average - deviation) for average, deviation in zip(averages, deviations)]
-        upper = [min(1.05, average + deviation) for average, deviation in zip(averages, deviations)]
+        upper = [min(1.0, average + deviation) for average, deviation in zip(averages, deviations)]
         ax.fill_between(
             times,
             lower,
@@ -110,7 +110,7 @@ def main() -> None:
             label=rf"inicio del estacionario ($t={stationary_time}$)",
         )
     style_axes(ax, "tiempo (s)", "fracción del clúster gigante")
-    ax.set_ylim(0.0, 1.05)
+    ax.set_ylim(0.0, 1.0)
     if times:
         ax.set_xlim(times[0], times[-1])
     place_legend_below(ax, ncol=2)

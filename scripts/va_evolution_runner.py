@@ -156,7 +156,7 @@ def plot_overlay(
         )
         x_left = times[0] if x_left is None else min(x_left, times[0])
         x_right = times[-1] if x_right is None else max(x_right, times[-1])
-    ax.set_ylim(0.0, 1.05)
+    ax.set_ylim(0.0, 1.0)
     if x_left is not None and x_right is not None:
         ax.set_xlim(x_left, x_right)
     place_legend_below(ax, ncol=min(3, len(rows)))

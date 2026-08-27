@@ -85,7 +85,7 @@ def plot_va_on_ax(
     ax.plot(times, averages, color=color, linestyle=linestyle, zorder=3, label=label)
     if show_std:
         lower = [max(0.0, average - deviation) for average, deviation in zip(averages, deviations)]
-        upper = [min(1.05, average + deviation) for average, deviation in zip(averages, deviations)]
+        upper = [min(1.0, average + deviation) for average, deviation in zip(averages, deviations)]
         fill_kwargs = dict(color=color, alpha=0.18 if std_label is None else 0.22, linewidth=0, zorder=2)
         if std_label is not None:
             fill_kwargs["label"] = std_label
@@ -97,7 +97,7 @@ def plot_va_on_ax(
         ax.axvline(stationary_time, color=vline_color, linewidth=1.8, linestyle="--", zorder=4, label=line_label)
     style_axes(ax, "tiempo (s)", "polarización")
     if apply_limits:
-        ax.set_ylim(0.0, 1.05)
+        ax.set_ylim(0.0, 1.0)
         if times:
             ax.set_xlim(times[0], times[-1])
     if legend:

@@ -180,7 +180,7 @@ def main() -> None:
         zorder=3,
     )
     style_axes(ax, "ruido (rad)", "polarización")
-    ax.set_ylim(0.0, 1.05)
+    ax.set_ylim(0.0, 1.0)
     ax.margins(x=0.05)
     save_figure(fig, out_image)
 
