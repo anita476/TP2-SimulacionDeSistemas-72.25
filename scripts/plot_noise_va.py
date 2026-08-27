@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Compute and plot average $v_a$ per noise (eta) from per-eta folders.
+"""Calcula y grafica el promedio de $v_a$ por ruido (eta) a partir de carpetas por eta.
 
-Expects an input directory containing folders named like `eta0.1`, `eta0.2`, ...
-Each such folder should contain an aggregated `va.txt` (as produced by the runners).
+Espera un directorio con subcarpetas `eta0.1`, `eta0.2`, ... Cada una debe tener
+un `va.txt` agregado (el que generan los runners).
 
-For each folder the script finds the stationary time using `utils.stationary.find_stationary`,
-computes the scalar average from that time to the end, writes a summary text file and
-produces a scatter plot of eta vs average $v_a$ (points only).
+Para cada carpeta se busca el tiempo estacionario, se promedia desde ahí hasta
+el final, se escribe un resumen y se grafica eta vs $v_a$ con barras de error
+(puntos unidos como guía para el ojo).
 """
 
 from __future__ import annotations
@@ -16,11 +16,8 @@ import csv
 from pathlib import Path
 from typing import Optional, Dict
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-
 from plot_va import read_va, scalar_average
+from utils.plot_style import BLUE, new_figure, save_figure, style_axes
 from utils.stationary import find_stationary
 
 
@@ -43,7 +40,7 @@ def write_summary(path: Path, rows: list[tuple[float, Optional[float], Optional[
         t_text = "none" if tstat is None else str(tstat)
         lines.append(f"{eta:g} {avg_text} {t_text}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {path}")
+    print(f"se escribió {path}")
 
 
 def read_config_file(path: Path) -> Dict[str, str]:
@@ -63,21 +60,22 @@ def read_config_file(path: Path) -> Dict[str, str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", type=Path, required=True, help="directory containing eta* subfolders")
-    parser.add_argument("--output", type=Path, default=None, help="output image path (default: input_dir/noise_va.png)")
-    parser.add_argument("--out-txt", type=Path, default=None, help="output summary txt (default: input_dir/noise_va.txt)")
-    parser.add_argument("--epsilon", type=float, default=None, help="epsilon for find_stationary (overrides config)")
-    parser.add_argument("--epochs", type=int, default=None, help="minimum suffix length for find_stationary (overrides config)")
+    parser.add_argument("--input-dir", type=Path, required=True, help="directorio con subcarpetas eta*")
+    parser.add_argument("--output", type=Path, default=None, help="ruta de la imagen (por defecto: input_dir/noise_va.png)")
+    parser.add_argument("--out-txt", type=Path, default=None, help="ruta del resumen txt (por defecto: input_dir/noise_va.txt)")
+    parser.add_argument("--epsilon", type=float, default=None, help="epsilon para find_stationary (pisa el de config)")
+    parser.add_argument("--epochs", type=int, default=None, help="longitud mínima del sufijo para find_stationary (pisa el de config)")
     args = parser.parse_args()
 
     input_dir = args.input_dir
     if not input_dir.is_dir():
-        parser.error(f"{input_dir}: not a directory")
+        parser.error(f"{input_dir}: no es un directorio")
 
     out_image = args.output or (input_dir / "noise_va.png")
     out_txt = args.out_txt or (input_dir / "noise_va.txt")
 
     rows: list[tuple[float, Optional[float], Optional[int]]] = []
+    errors: dict[float, float] = {}
 
     parent_cfg = read_config_file(input_dir / "config.txt")
 
@@ -89,12 +87,12 @@ def main() -> None:
             continue
         va_path = entry / "va.txt"
         if not va_path.is_file():
-            print(f"skipping {entry}: missing va.txt")
+            print(f"se omite {entry}: falta va.txt")
             continue
         try:
             times, averages, deviations = read_va(va_path)
         except (OSError, ValueError) as error:
-            print(f"skipping {entry}: failed to read va.txt: {error}")
+            print(f"se omite {entry}: no se pudo leer va.txt: {error}")
             continue
 
         # determine config for this case: prefer case/config.txt, else parent config
@@ -111,16 +109,16 @@ def main() -> None:
                 int(merged_cfg["epochs"]) if "epochs" in merged_cfg else None
             )
         except (TypeError, ValueError) as error:
-            print(f"skipping {entry}: invalid epsilon/epochs in config: {error}")
+            print(f"se omite {entry}: epsilon/epochs inválidos en config: {error}")
             continue
         if epsilon is None or epochs is None:
-            print(f"skipping {entry}: epsilon or epochs not specified in config or args")
+            print(f"se omite {entry}: falta epsilon o epochs en config o en los argumentos")
             continue
 
         try:
             tstat = find_stationary(times, averages, epsilon, epochs)
         except ValueError as error:
-            print(f"skipping {entry}: invalid stationary parameters: {error}")
+            print(f"se omite {entry}: parámetros de estacionario inválidos: {error}")
             continue
 
         if tstat is None:
@@ -128,8 +126,11 @@ def main() -> None:
         else:
             try:
                 avg_va = scalar_average(times, averages, tstat)
+                window_dev = [dev for time, dev in zip(times, deviations) if time >= tstat]
+                if window_dev:
+                    errors[eta] = sum(window_dev) / len(window_dev)
             except ValueError as error:
-                print(f"skipping {entry}: could not compute scalar average: {error}")
+                print(f"se omite {entry}: no se pudo calcular el promedio escalar: {error}")
                 avg_va = None
 
         rows.append((eta, avg_va, tstat))
@@ -159,24 +160,29 @@ def main() -> None:
 
     write_summary(out_txt, rows, config_out)
 
-    # prepare data for plotting: exclude None averages
     plot_data = [(eta, avg) for eta, avg, _ in rows if avg is not None]
     if not plot_data:
-        print("no averages to plot")
+        print("no hay promedios para graficar")
         return
     etas, avgs = zip(*sorted(plot_data))
+    yerr = [errors.get(eta, 0.0) for eta in etas]
 
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.scatter(etas, avgs, color="#176b87", s=40)
-    ax.set_xlabel(r"$\eta$")
-    ax.set_ylabel(r"$\langle v_a \rangle$")
-    ax.set_title(r"Average $\langle v_a\rangle$ vs $\eta$")
-    ax.grid(True, alpha=0.25)
-    fig.tight_layout()
-    out_image.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_image, dpi=150)
-    plt.close(fig)
-    print(f"wrote {out_image}")
+    fig, ax = new_figure()
+    ax.errorbar(
+        etas,
+        avgs,
+        yerr=yerr,
+        color=BLUE,
+        marker="o",
+        markeredgecolor="black",
+        markeredgewidth=0.6,
+        linestyle="-",
+        zorder=3,
+    )
+    style_axes(ax, "ruido (rad)", "polarización")
+    ax.set_ylim(0.0, 1.05)
+    ax.margins(x=0.05)
+    save_figure(fig, out_image)
 
 
 if __name__ == "__main__":

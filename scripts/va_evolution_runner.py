@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Characteristic va(t) curves and the stationary window used for the scalar average."""
+"""Curvas características de va(t) y la ventana estacionaria usada para el promedio escalar."""
 
 from __future__ import annotations
 
@@ -7,9 +7,7 @@ import argparse
 import statistics
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
+from utils.plot_style import apply_academic_style, place_legend_below, save_figure
 import matplotlib.pyplot as plt
 
 from offlatice_experiment_runner import aggregate, parse_va_output, run_command
@@ -38,7 +36,7 @@ def run_case(args: argparse.Namespace, model: str, rho: float, eta: float) -> Pa
     va_path = case_dir / "va.txt"
     if args.plot_only:
         if not va_path.is_file():
-            raise FileNotFoundError(f"{va_path}: missing; run without --plot-only")
+            raise FileNotFoundError(f"{va_path}: no existe; ejecutar sin --plot-only")
         return va_path
 
     runs: list[dict[int, float]] = []
@@ -60,7 +58,7 @@ def run_case(args: argparse.Namespace, model: str, rho: float, eta: float) -> Pa
         values = parse_va_output(run_command(command, run), run)
         write_run_va(runs_dir / f"run-{run}.txt", values)
         runs.append(values)
-        print(f"  {case_name(model, rho, eta)} run {run + 1}/{args.runs}", flush=True)
+        print(f"  {case_name(model, rho, eta)} corrida {run + 1}/{args.runs}", flush=True)
 
     va_path.write_text(aggregate(runs, "va"), encoding="utf-8")
     return va_path
@@ -101,7 +99,7 @@ def summarize_case(
 
 
 def plot_single(row: dict[str, object], output: Path) -> None:
-    fig, ax = plt.subplots(figsize=(9, 5.5))
+    fig, ax = new_figure()
     plot_va_on_ax(
         ax,
         row["times"],
@@ -109,30 +107,25 @@ def plot_single(row: dict[str, object], output: Path) -> None:
         row["deviations"],
         row["t_stat"],
     )
-    ax.set_title(
-        f"Evolución de $v_a$ ({row['model']}, $\\rho$={row['rho']:g}, $\\eta$={row['eta']:g})"
-    )
-    fig.tight_layout()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output, dpi=150)
-    plt.close(fig)
-    print(f"wrote {output}")
+    save_figure(fig, output)
 
 
-def plot_grid(rows: list[dict[str, object]], model: str, output: Path, epsilon: float, epochs: int) -> None:
+def plot_grid(rows: list[dict[str, object]], model: str, output: Path) -> None:
     selected = [row for row in rows if row["model"] == model]
     if not selected:
         return
     rhos = sorted({float(row["rho"]) for row in selected})
     etas = sorted({float(row["eta"]) for row in selected})
     by_key = {(float(row["rho"]), float(row["eta"])): row for row in selected}
+    apply_academic_style()
     fig, axes = plt.subplots(
         len(rhos),
         len(etas),
-        figsize=(5.2 * len(etas), 3.4 * len(rhos)),
+        figsize=(7.2 * len(etas), 5.2 * len(rhos)),
         sharex=True,
         sharey=True,
         squeeze=False,
+        layout="constrained",
     )
     for i, rho in enumerate(rhos):
         for j, eta in enumerate(etas):
@@ -145,27 +138,22 @@ def plot_grid(rows: list[dict[str, object]], model: str, output: Path, epsilon: 
                 row["deviations"],
                 row["t_stat"],
                 vline_with_time=False,
+                legend=False,
             )
-            t_text = "—" if row["t_stat"] is None else str(row["t_stat"])
-            ax.set_title(rf"$\rho$={rho:g}, $\eta$={eta:g}, $t^*$={t_text}")
+            ax.set_title(
+                rf"$\rho={rho:g}\,\mathrm{{m}}^{{-2}}$, $\eta={eta:g}\,\mathrm{{rad}}$",
+                pad=10,
+            )
             if i < len(rhos) - 1:
                 ax.set_xlabel("")
             if j > 0:
                 ax.set_ylabel("")
-            ax.legend().remove()
     handles, labels = axes[0][0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=True)
-    fig.suptitle(
-        f"Evoluciones características de $v_a$ ({model})\n"
-        f"estacionario: $|v_a(t)-\\mu|\\leq\\epsilon$={epsilon:g} hasta el final, "
-        f"$\\mu$ = media de $t^*$ a $t_\\mathrm{{final}}$, mínimo {epochs} pasos",
-        y=1.02,
-    )
-    fig.tight_layout()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"wrote {output}")
+    place_legend_below(fig, handles, labels, ncol=3)
+    layout = fig.get_layout_engine()
+    if layout is not None:
+        layout.set(h_pad=0.4, w_pad=0.08, hspace=0.18, wspace=0.06)
+    save_figure(fig, output)
 
 
 def write_summary(path: Path, rows: list[dict[str, object]], epsilon: float, epochs: int) -> None:
@@ -183,7 +171,7 @@ def write_summary(path: Path, rows: list[dict[str, object]], epsilon: float, epo
         std_text = "none" if std_va is None else f"{std_va:.17g}"
         lines.append(f"{row['model']} {row['rho']:g} {row['eta']:g} {t_text} {mean_text} {std_text}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {path}")
+    print(f"se escribió {path}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -202,19 +190,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-seed", type=int, default=1)
     parser.add_argument("--epsilon", type=float, default=0.08)
     parser.add_argument("--epochs", type=int, default=200)
-    parser.add_argument("--plot-only", action="store_true", help="reuse va.txt already in --output-dir")
+    parser.add_argument("--plot-only", action="store_true", help="reutilizar va.txt ya presente en --output-dir")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
     if args.runs < 1:
-        raise SystemExit("--runs must be at least 1")
+        raise SystemExit("--runs debe ser al menos 1")
     if args.steps < 1 or args.stride < 1:
-        raise SystemExit("--steps and --stride must be at least 1")
+        raise SystemExit("--steps y --stride deben ser al menos 1")
     invalid = [name for name in args.models if name not in {"vicsek", "voter"}]
     if invalid:
-        raise SystemExit(f"unknown --models {invalid}; use vicsek and/or voter")
+        raise SystemExit(f"--models desconocidos {invalid}; usar vicsek y/o voter")
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -229,7 +217,7 @@ def main() -> None:
                 rows.append(row)
 
     for model in args.models:
-        plot_grid(rows, model, output_dir / f"va_evolucion_{model}.png", args.epsilon, args.epochs)
+        plot_grid(rows, model, output_dir / f"va_evolucion_{model}.png")
     write_summary(output_dir / "stationary.txt", rows, args.epsilon, args.epochs)
 
     missing = [f"{row['model']} rho={row['rho']:g} eta={row['eta']:g}" for row in rows if row["t_stat"] is None]
