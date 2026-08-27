@@ -1,11 +1,11 @@
 
 def find_stationary(times: list[int], averages: list[float], epsilon: float, epochs: int) -> int | None:
-    """Return the first t after which the series stays within epsilon of its suffix mean. `epochs` is the minimum suffix length.
+    """Devuelve el primer t a partir del cual la serie queda a menos de epsilon de la media del sufijo. `epochs` es la longitud mínima de ese sufijo.
     """
     if epsilon < 0:
-        raise ValueError("epsilon must be non-negative")
+        raise ValueError("epsilon debe ser no negativo")
     if epochs < 1:
-        raise ValueError("epochs must be at least 1")
+        raise ValueError("epochs debe ser al menos 1")
 
     length = len(averages)
     if length < epochs:

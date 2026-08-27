@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot CIM search times from cim_timing_runner.py."""
+"""Grafica tiempos de búsqueda CIM a partir de cim_timing_runner.py."""
 
 from __future__ import annotations
 
@@ -7,42 +7,13 @@ import argparse
 import csv
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from utils.plot_style import MARKERS, SERIES, apply_sci_axis, new_figure, place_legend_below, save_figure, style_axes
 
 
 SOURCE_STYLE = {
-    "tp2": ("#176b87", "o"),
-    "tp1": ("#d62728", "s"),
+    "tp2": (SERIES[0], MARKERS[0], "-", "TP2, contorno periódico"),
+    "tp1": (SERIES[1], MARKERS[1], "--", "TP1, paredes"),
 }
-
-
-def source_label(source: str, rows: list[dict[str, float | int | str]]) -> str:
-    selected = next((row for row in rows if row["source"] == source), None)
-    if selected is None:
-        return source
-    boundary = "PBC" if int(selected["periodic"]) else "paredes"
-    box = float(selected["L"])
-    grid = int(selected["M"])
-    if source == "tp2":
-        return f"TP2 Vicsek (L={box:g}, r=0, {boundary}, M={grid})"
-    if source == "tp1":
-        return f"TP1 CIM (L={box:g}, r≈0.25, {boundary}, M={grid})"
-    return source
-
-
-def density_note(rows: list[dict[str, float | int | str]]) -> str:
-    tp2 = next((row for row in rows if row["source"] == "tp2"), None)
-    tp1 = next((row for row in rows if row["source"] == "tp1"), None)
-    if tp2 is None or tp1 is None:
-        return ""
-    ratio = (float(tp1["L"]) / float(tp2["L"])) ** 2
-    return (
-        f"a igual N, ρ_TP2 = {ratio:g} ρ_TP1 "
-        f"(L={float(tp2['L']):g} vs L={float(tp1['L']):g})"
-    )
 
 
 def read_aggregate(path: Path) -> list[dict[str, float | int | str]]:
@@ -69,7 +40,7 @@ def read_aggregate(path: Path) -> list[dict[str, float | int | str]]:
             skipinitialspace=True,
         )
         if not reader.fieldnames or not required.issubset(reader.fieldnames):
-            raise ValueError(f"{path}: expected columns {' '.join(sorted(required))}")
+            raise ValueError(f"{path}: se esperaban las columnas {' '.join(sorted(required))}")
         for line_number, raw in enumerate(reader, 2):
             try:
                 rows.append(
@@ -90,9 +61,9 @@ def read_aggregate(path: Path) -> list[dict[str, float | int | str]]:
                     }
                 )
             except (KeyError, TypeError, ValueError) as error:
-                raise ValueError(f"{path}: invalid data at line {line_number}") from error
+                raise ValueError(f"{path}: dato inválido en la línea {line_number}") from error
     if not rows:
-        raise ValueError(f"{path}: no data rows")
+        raise ValueError(f"{path}: no hay filas de datos")
     return rows
 
 
@@ -105,90 +76,75 @@ def parse_tp2_trace(path: Path) -> tuple[list[float], list[float]]:
             if not fields or fields[0].startswith("#") or fields == ["t", "build_seconds", "sweep_seconds"]:
                 continue
             if len(fields) != 3:
-                raise ValueError(f"{path}: invalid CIM trace at line {line_number}: {line!r}")
+                raise ValueError(f"{path}: traza CIM inválida en la línea {line_number}: {line!r}")
             try:
                 builds.append(float(fields[1]))
                 sweeps.append(float(fields[2]))
             except ValueError as error:
-                raise ValueError(f"{path}: invalid CIM trace at line {line_number}: {line!r}") from error
+                raise ValueError(f"{path}: traza CIM inválida en la línea {line_number}: {line!r}") from error
     if not builds:
-        raise ValueError(f"{path}: CIM trace has no samples")
+        raise ValueError(f"{path}: la traza CIM no tiene muestras")
     return builds, sweeps
 
 
 def plot_vs_n(rows: list[dict[str, float | int | str]], output: Path) -> None:
-    fig, ax = plt.subplots(figsize=(9, 5.5))
-    samples = None
-    for source, (color, marker) in SOURCE_STYLE.items():
+    fig, ax = new_figure()
+    plotted_n: list[int] = []
+    for source, (color, marker, linestyle, label) in SOURCE_STYLE.items():
         selected = sorted((row for row in rows if row["source"] == source), key=lambda row: int(row["N"]))
         if not selected:
             continue
         ns = [int(row["N"]) for row in selected]
-        means = [float(row["mean_cim"]) * 1e6 for row in selected]
-        bars = [
-            min(float(row["std_cim"]) * 1e6, mean * 0.95) if mean > 0 else float(row["std_cim"]) * 1e6
-            for row, mean in zip(selected, means)
-        ]
-        samples = int(selected[0]["n_samples"])
+        plotted_n.extend(ns)
+        means = [float(row["mean_cim"]) for row in selected]
+        bars = [float(row["std_cim"]) for row in selected]
         ax.errorbar(
             ns,
             means,
             yerr=bars,
             marker=marker,
             color=color,
-            capsize=3,
-            markersize=7,
-            linewidth=2,
-            label=source_label(source, rows),
+            markeredgecolor="black",
+            markeredgewidth=0.6,
+            linestyle=linestyle,
+            zorder=3,
+            label=label,
         )
-    ax.set_xlabel("N (cantidad de partículas)")
-    ax.set_ylabel("tiempo de CIM por búsqueda [µs]")
-    title = "Tiempos de ejecución del CIM: TP2 vs TP1"
-    extra = density_note(rows)
-    if samples is not None:
-        sample_note = f"barra = desvío estándar, {samples} búsquedas"
-        extra = f"{extra}; {sample_note}" if extra else sample_note
-    if extra:
-        title += f"\n{extra}"
-    ax.set_title(title)
-    ax.grid(True, alpha=0.25)
-    ax.legend()
-    fig.tight_layout()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output, dpi=150)
-    plt.close(fig)
-    print(f"wrote {output}")
+    style_axes(ax, "cantidad de partículas", "tiempo de búsqueda CIM (s)")
+    if plotted_n:
+        ax.set_xticks(sorted(set(plotted_n)))
+    apply_sci_axis(ax, "y")
+    place_legend_below(ax, ncol=1)
+    save_figure(fig, output)
 
 
 def plot_vs_t(trace_dir: Path, output: Path) -> None:
     traces = sorted(trace_dir.glob("tp2_N*_run*.txt"))
     if not traces:
-        raise ValueError(f"{trace_dir}: no TP2 traces matching tp2_N*_run*.txt")
+        raise ValueError(f"{trace_dir}: no hay trazas TP2 que coincidan con tp2_N*_run*.txt")
 
-    fig, ax = plt.subplots(figsize=(9, 5.5))
-    colors = ["#176b87", "#d62728", "#2a9d8f", "#e9c46a"]
+    fig, ax = new_figure()
     for index, path in enumerate(traces):
         builds, sweeps = parse_tp2_trace(path)
-        totals = [(build + sweep) * 1e6 for build, sweep in zip(builds, sweeps)]
+        totals = [build + sweep for build, sweep in zip(builds, sweeps)]
         times = list(range(1, len(totals) + 1))
         stem = path.stem
         particle_count = stem.split("_")[1][1:] if "_" in stem else stem
-        label = f"N={particle_count}"
-        ax.plot(times, totals, color=colors[index % len(colors)], linewidth=1.2, label=label)
-    ax.set_xlabel("t")
-    ax.set_ylabel("tiempo de CIM por búsqueda [µs]")
-    ax.set_title("Tiempo de CIM por paso en las simulaciones del TP2")
-    ax.grid(True, alpha=0.25)
-    ax.legend()
-    fig.tight_layout()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output, dpi=150)
-    plt.close(fig)
-    print(f"wrote {output}")
+        ax.plot(
+            times,
+            totals,
+            color=SERIES[index % len(SERIES)],
+            linewidth=1.4,
+            label=rf"$N={particle_count}$",
+        )
+    style_axes(ax, "tiempo (s)", "tiempo de búsqueda CIM (s)")
+    apply_sci_axis(ax, "y")
+    place_legend_below(ax, ncol=3)
+    save_figure(fig, output)
 
 
 def print_table(rows: list[dict[str, float | int | str]]) -> None:
-    print("\nN  source   mean CIM [µs]   std [µs]   build [µs]   sweep [µs]   ns/part   ρ")
+    print("\nN  origen   CIM medio [us]   desvio [us]   armado [us]   barrido [us]   ns/particula   rho")
     by_n: dict[int, dict[str, dict[str, float | int | str]]] = {}
     for row in rows:
         by_n.setdefault(int(row["N"]), {})[str(row["source"])] = row
@@ -210,18 +166,18 @@ def print_table(rows: list[dict[str, float | int | str]]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, required=True, help="aggregate file, such as data/cim-timing/cim_times.txt")
+    parser.add_argument("--input", type=Path, required=True, help="archivo agregado, por ejemplo data/cim-timing/cim_times.txt")
     parser.add_argument(
         "--output",
         type=Path,
         default=None,
-        help="comparison figure path (default: input path with a .png suffix)",
+        help="ruta de la figura de comparación (por defecto: la del input con extensión .png)",
     )
     parser.add_argument(
         "--traces-dir",
         type=Path,
         default=None,
-        help="TP2 CIM traces; if set, also writes a time-series figure",
+        help="trazas CIM del TP2; si se indica, también se escribe la figura vs tiempo",
     )
     args = parser.parse_args()
 

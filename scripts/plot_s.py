@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot average S over time from an aggregated S data file."""
+"""Grafica la fracción S media en función del tiempo a partir de un archivo agregado."""
 
 from __future__ import annotations
 
@@ -9,12 +9,12 @@ from pathlib import Path
 from utils.stationary import find_stationary
 import matplotlib
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from utils.plot_style import BLUE, VERMILLION, new_figure, place_legend_below, save_figure, style_axes
+from utils.stationary import find_stationary
 
 
 def read_s(path: Path) -> tuple[list[int], list[float], list[float]]:
-    """Read t, average_s, and std_s columns from an aggregate file."""
+    """Lee las columnas t, average_s y std_s de un archivo agregado."""
     times: list[int] = []
     averages: list[float] = []
     deviations: list[float] = []
@@ -27,7 +27,7 @@ def read_s(path: Path) -> tuple[list[int], list[float], list[float]]:
         )
         required_columns = {"t", "average_s", "std_s"}
         if not rows.fieldnames or not required_columns.issubset(rows.fieldnames):
-            raise ValueError(f"{path}: expected columns t average_s std_s")
+            raise ValueError(f"{path}: se esperaban las columnas t average_s std_s")
 
         for line_number, row in enumerate(rows, 2):
             try:
@@ -35,10 +35,10 @@ def read_s(path: Path) -> tuple[list[int], list[float], list[float]]:
                 averages.append(float(row["average_s"]))
                 deviations.append(float(row["std_s"]))
             except (TypeError, ValueError) as error:
-                raise ValueError(f"{path}: invalid data at line {line_number}") from error
+                raise ValueError(f"{path}: dato inválido en la línea {line_number}") from error
 
     if not times:
-        raise ValueError(f"{path}: no data rows")
+        raise ValueError(f"{path}: no hay filas de datos")
     return times, averages, deviations
 
 
@@ -46,18 +46,18 @@ def read_s(path: Path) -> tuple[list[int], list[float], list[float]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, required=True, help="aggregate file, such as data/experiment-output/cluster_s.txt")
+    parser.add_argument("--input", type=Path, required=True, help="archivo agregado, por ejemplo data/experiment-output/cluster_s.txt")
     parser.add_argument(
         "--output",
         type=Path,
         default=None,
-        help="output image path (default: input path with a .png suffix)",
+        help="ruta de la imagen de salida (por defecto: la del input con extensión .png)",
     )
-    parser.add_argument("--t-min", "--t_min", type=int, help="first time to plot (inclusive)")
-    parser.add_argument("--t-max", "--t_max", type=int, help="last time to plot (inclusive)")
-    parser.add_argument("--epsilon", type=float, required=True, help="maximum distance from the mean of t* to the end")
-    parser.add_argument("--epochs", type=int, required=True, help="minimum samples from t* to the end")
-    parser.add_argument("--no-std", action="store_true", help="hide the standard-deviation band")
+    parser.add_argument("--t-min", "--t_min", type=int, help="primer tiempo a graficar (inclusive)")
+    parser.add_argument("--t-max", "--t_max", type=int, help="último tiempo a graficar (inclusive)")
+    parser.add_argument("--epsilon", type=float, required=True, help="distancia máxima a la media del sufijo desde t* hasta el final")
+    parser.add_argument("--epochs", type=int, required=True, help="cantidad mínima de muestras desde t* hasta el final")
+    parser.add_argument("--no-std", action="store_true", help="ocultar la banda de desviación")
     args = parser.parse_args()
 
     try:
@@ -66,7 +66,7 @@ def main() -> None:
         parser.error(str(error))
 
     if args.t_min is not None and args.t_max is not None and args.t_min > args.t_max:
-        parser.error("--t-min must be less than or equal to --t-max")
+        parser.error("--t-min debe ser menor o igual que --t-max")
 
     selected = [
         (time, average, deviation)
@@ -74,7 +74,7 @@ def main() -> None:
         if (args.t_min is None or time >= args.t_min) and (args.t_max is None or time <= args.t_max)
     ]
     if not selected:
-        parser.error("the selected time range contains no data")
+        parser.error("el rango de tiempo elegido no contiene datos")
     times, averages, deviations = map(list, zip(*selected))
 
     try:
@@ -85,28 +85,40 @@ def main() -> None:
     output = args.output or args.input.with_suffix(".png")
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=(9, 5.5))
-    ax.plot(times, averages, color="#176b87", linewidth=2, label="average S")
-    if stationary_time is not None:
-        ax.axvline(stationary_time, color="red", linewidth=1.5, label=f"inicio del estacionario t={stationary_time}")
-        ax.axvspan(stationary_time, times[-1], color="#d62728", alpha=0.06, zorder=0)
+    fig, ax = new_figure()
+    ax.plot(times, averages, color=BLUE, zorder=3, label="promedio entre corridas")
     if not args.no_std:
-        lower = [average - deviation for average, deviation in zip(averages, deviations)]
-        upper = [average + deviation for average, deviation in zip(averages, deviations)]
-        ax.fill_between(times, lower, upper, color="#8ecae6", alpha=0.35, label="std S")
-    ax.set_xlabel("t")
-    ax.set_ylabel("average S")
-    ax.set_title("Average S over time")
-    ax.grid(True, alpha=0.25)
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(output, dpi=150)
-    plt.close(fig)
-    print(f"wrote {output}")
+        lower = [max(0.0, average - deviation) for average, deviation in zip(averages, deviations)]
+        upper = [min(1.05, average + deviation) for average, deviation in zip(averages, deviations)]
+        ax.fill_between(
+            times,
+            lower,
+            upper,
+            color=BLUE,
+            alpha=0.22,
+            linewidth=0,
+            zorder=2,
+            label="desvío entre corridas",
+        )
+    if stationary_time is not None:
+        ax.axvline(
+            stationary_time,
+            color=VERMILLION,
+            linewidth=1.8,
+            linestyle="--",
+            zorder=4,
+            label=rf"inicio del estacionario ($t={stationary_time}$)",
+        )
+    style_axes(ax, "tiempo (s)", "fracción del clúster gigante")
+    ax.set_ylim(0.0, 1.05)
+    if times:
+        ax.set_xlim(times[0], times[-1])
+    place_legend_below(ax, ncol=2)
+    save_figure(fig, output)
     if stationary_time is None:
-        print("no stationary time found")
+        print("no se encontró tiempo estacionario")
     else:
-        print(f"stationary time: {stationary_time}")
+        print(f"tiempo estacionario: {stationary_time}")
 
 
 if __name__ == "__main__":
