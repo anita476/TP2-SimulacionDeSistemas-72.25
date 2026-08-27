@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
-
+from utils.find_stationary import find_stationary
 import matplotlib
 
 matplotlib.use("Agg")
@@ -42,26 +42,6 @@ def read_va(path: Path) -> tuple[list[int], list[float], list[float]]:
     return times, averages, deviations
 
 
-def find_stationary(times: list[int], averages: list[float], epsilon: float, epochs: int) -> int | None:
-    """Return the first t after which the series stays within epsilon of its suffix mean.
-
-    The reference is the mean from that t to the end, not a short local window
-    and not the last `epochs` samples alone. `epochs` is the minimum suffix length.
-    """
-    if epsilon < 0:
-        raise ValueError("epsilon must be non-negative")
-    if epochs < 1:
-        raise ValueError("epochs must be at least 1")
-
-    length = len(averages)
-    if length < epochs:
-        return None
-    for index in range(length - epochs + 1):
-        rest = averages[index:]
-        suffix_mean = sum(rest) / len(rest)
-        if all(abs(value - suffix_mean) <= epsilon for value in rest):
-            return times[index]
-    return None
 
 
 def main() -> None:
