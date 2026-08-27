@@ -20,10 +20,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from utils.stationary import find_stationary
 from plot_s import read_s
 from plot_va import scalar_average
-from utils.stationary import find_stationary
-
 
 def parse_eta_dir_name(name: str) -> Optional[float]:
     if not name.startswith("eta"):

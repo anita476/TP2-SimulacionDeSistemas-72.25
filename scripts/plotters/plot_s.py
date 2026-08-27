@@ -6,9 +6,12 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
-from utils.stationary import find_stationary
 import matplotlib
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils.plot_style import BLUE, VERMILLION, new_figure, place_legend_below, save_figure, style_axes
 from utils.stationary import find_stationary
 

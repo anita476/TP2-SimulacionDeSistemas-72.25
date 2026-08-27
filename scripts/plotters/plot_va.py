@@ -8,8 +8,12 @@ import argparse
 import csv
 from pathlib import Path
 
-from utils.plot_style import BLUE, VERMILLION, new_figure, place_legend_below, save_figure, style_axes
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from utils.plot_style import BLUE, VERMILLION, new_figure, place_legend_below, save_figure, style_axes
 
 def read_va(path: Path) -> tuple[list[int], list[float], list[float]]:
     """Lee las columnas t, average_va y std_va de un archivo agregado."""

@@ -16,6 +16,11 @@ import csv
 from pathlib import Path
 from typing import Optional, Dict
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from plot_va import read_va, scalar_average
 from utils.plot_style import BLUE, new_figure, save_figure, style_axes
 from utils.stationary import find_stationary

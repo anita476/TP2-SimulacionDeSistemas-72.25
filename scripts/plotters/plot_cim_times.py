@@ -6,6 +6,10 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.plot_style import MARKERS, SERIES, apply_sci_axis, new_figure, place_legend_below, save_figure, style_axes
 

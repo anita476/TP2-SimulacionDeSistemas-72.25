@@ -6,6 +6,10 @@ from __future__ import annotations
 import argparse
 import statistics
 from pathlib import Path
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from offlatice_experiment_runner import aggregate, parse_va_output, run_command
 from plot_va import plot_va_on_ax, read_va, scalar_average, slice_va
