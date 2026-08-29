@@ -105,7 +105,7 @@ def place_legend_below(target, *args, ncol: int = 1, **kwargs):
 def style_axes(ax, xlabel: str, ylabel: str) -> None:
     ax.set_xlabel(xlabel, labelpad=10)
     ax.set_ylabel(ylabel, labelpad=10)
-    ax.grid(True, which="major")
+    ax.grid(False)
     ax.set_axisbelow(True)
     ax.tick_params(axis="both", which="major", direction="out", top=False, right=False, labelsize=FONT_SIZE)
     ax.minorticks_off()

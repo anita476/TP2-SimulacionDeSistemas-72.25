@@ -1,12 +1,6 @@
 # Reproducción de Resultados
 
-## Punto b: evolución temporal de $v_a$
-
-Criterio: $t^*$ es el primer tiempo tal que, de ahí hasta el final,
-$|v_a(t)-\mu|\le\epsilon$, con $\mu$ la media de $v_a$ desde ese $t^*$ hasta
-el último paso. `epochs` es la longitud mínima del sufijo. El escalar se
-promedia para $t \ge t^*$. $\epsilon=0.08$ (8 % del rango de $v_a$),
-`epochs=200`.
+## Punto b: evolución temporal de $v_a$ y elección del `t*`
 
 ```bash
 python3 scripts/va_evolution_runner.py \
@@ -15,8 +9,7 @@ python3 scripts/va_evolution_runner.py \
 	--models vicsek voter \
 	--rho 2 4 8 \
 	--eta 0.1 \
-	--steps 4000 --runs 10 \
-	--epsilon 0.08 --epochs 200
+	--steps 4000 --runs 10
 ```
 
 Figuras: `data/va-evolution/va_evolucion_vicsek.png`,
