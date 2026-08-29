@@ -3,10 +3,13 @@
 Sigue la guía de presentaciones: sin título interno, ejes en palabras con
 unidades MKS, fuente ≥ 20, notación 10^{n} (no 1e-3) y puntos visibles en
 las curvas de input vs observable.
+Otros:
+- axis grids: off
 """
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 
 import matplotlib
@@ -87,6 +90,34 @@ def new_figure(width: float | None = None, height: float | None = None):
     )
 
 
+@contextmanager
+def scaled_style(font_scale: float = 1.0, line_width: float | None = None):
+    """Ajusta fuentes y grosor de línea para una figura de tamaño distinto al estándar.
+
+    Una figura más ancha se achica más al meterla en la diapositiva, así que la fuente
+    tiene que crecer algo para no quedar por debajo de los 20 pt de la Guía 1.8.  Pero
+    no conviene escalarla con el ancho: si la figura se ensancha más de lo que se
+    estira, una fuente escalada por el ancho queda desproporcionada respecto del alto.
+
+    `line_width` va aparte y no acompaña a la fuente: en una serie con miles de puntos
+    ruidosos, una línea gruesa se empasta y tapa el patrón.
+    """
+    apply_academic_style()  # antes del contexto: adentro se revertiría al salir
+    size = FONT_SIZE * font_scale
+    overrides = {
+        "font.size": size,
+        "axes.labelsize": size,
+        "axes.titlesize": size,
+        "xtick.labelsize": size,
+        "ytick.labelsize": size,
+        "legend.fontsize": size,
+    }
+    if line_width is not None:
+        overrides["lines.linewidth"] = line_width
+    with matplotlib.rc_context(overrides):
+        yield
+
+
 def place_legend_below(target, *args, ncol: int = 1, **kwargs):
     """Leyenda debajo de los ejes, sin tapar la etiqueta x.
 
@@ -107,11 +138,19 @@ def style_axes(ax, xlabel: str, ylabel: str) -> None:
     ax.set_ylabel(ylabel, labelpad=10)
     ax.grid(False)
     ax.set_axisbelow(True)
-    ax.tick_params(axis="both", which="major", direction="out", top=False, right=False, labelsize=FONT_SIZE)
+    # Del rcParam y no de FONT_SIZE, para no pisar lo que fijó scaled_style().
+    ax.tick_params(
+        axis="both",
+        which="major",
+        direction="out",
+        top=False,
+        right=False,
+        labelsize=matplotlib.rcParams["xtick.labelsize"],
+    )
     ax.minorticks_off()
     for spine in ax.spines.values():
         spine.set_color("black")
-        spine.set_linewidth(1.15)
+        spine.set_linewidth(matplotlib.rcParams["axes.linewidth"])
 
 
 def apply_sci_axis(ax, axis: str = "y") -> None:

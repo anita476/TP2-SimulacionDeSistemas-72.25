@@ -1,25 +1,69 @@
 # Reproducción de Resultados
 
-## Punto b: evolución temporal de $v_a$ y elección del `t*`
+## Punto b: evolución temporal de $v_a$ y elección del umbral del estacionario
+
+**Qué se eligió y por qué**
+* $\eta$: 0.1, 1.0, 3.0, 6.0 - uno bajo (ordenado), 2 medios y uno alto (desordenado) [TODO: elegir bien estos etas pero creo que estan bien]
+* $\rho$: 2, 4, 8 - para verificar si el criterio usado es aplicable para distintas densidades (solo se usa densidad = 4 para la presentación)
+* pasos: 10.000 pues el votante a $\rho=8$ sigue ordenándose hasta ~2500 s
+* modelos: los dos en la misma figura pues el punto (f) pide comparar el votante "en las figuras construidas en los puntos (b, c, d y e)"
+
+**Primero: observar**
 
 ```bash
 python3 scripts/va_evolution_runner.py \
 	--offlattice-executable build/OffLattice-TP2 \
-	--output-dir data/va-evolution \
-	--models vicsek voter \
-	--rho 2 4 8 \
-	--eta 0.1 \
-	--steps 4000 --runs 10
+	--output-dir data/va-evolution-b \
+	--rho 2 4 8 --eta 0.1 1.0 3.0 6.0 \
+	--steps 10000 --runs 10
 ```
 
-Figuras: `data/va-evolution/va_evolucion_vicsek.png`,
-`va_evolucion_voter.png`, y un PNG por caso. Tabla: `stationary.txt`.
-La vertical roja es el inicio del estacionario.
+![va vs t, rho = 4, sin umbral](../data/va-evolution-b/va_vs_t_rho4_sin_umbral.png)
 
-En Vicsek $t^*$ cae ~100–150. El votante ordena más lento: a $\rho=2$,
-$t^*\approx 720$; a $\rho=4$ y $8$ el promedio entre corridas todavía se
-mueve cerca del final de los 4000 pasos, y el desvío del escalar es
-grande. El criterio es el mismo; no se adelanta $t^*$ a ojo.
+Las otras dos densidades, para verificar que el criterio sirve igual:
+
+| $\rho = 2$ | $\rho = 8$ |
+|---|---|
+| ![](../data/va-evolution-b/va_vs_t_rho2_sin_umbral.png) | ![](../data/va-evolution-b/va_vs_t_rho8_sin_umbral.png) |
+
+Otros archivos que deja en `data/va-evolution-b/`:
+
+- `<modelo>_rho<ρ>_eta<η>/va.txt`: `t average_va std_va` entre las 10 corridas (sirve para este grafico, se puede prender el std con `--std` pero se apaga por default para que se vea mejor)
+- `<modelo>_rho<ρ>_eta<η>/runs/run-N.txt`: la serie de cada corrida por separado (sirve para calcular barra de error del escalar luego y para poder re-analizar sin re-simular todo)
+[TODO: el "auto" despues habria que sacarlo maybe?]
+- `stationary.txt`: `T`, `t_stat`, su origen (`ojo`/`auto`) y el escalar, acumulado entre corridas (sirve para comparar el algoritmo que fijamos antes)
+
+**Segundo: marcar $t^*$**
+
+Es **un solo umbral para todos los $\eta$**: las curvas de ruido alto y bajo son la evidencia de que ese tiempo deja afuera todos los transitorios.
+
+El caso mas importante que manda es **el votante a $\rho=8$ con $\eta=0.1$**, que sigue subiendo hasta cerca de los 2500 s. El umbral es **uno solo para todos los $\eta$ y para los dos modelos**(? TODO: VERIFICAR).
+
+Se elige $t^* = 3000$ s, es decir $0.3\,T$: deja ese transitorio afuera con margen y conserva el 70% de los pasos para promediar.
+
+```bash
+python3 scripts/va_evolution_runner.py \
+    --output-dir data/va-evolution-b --plot-only \
+    --rho 2 4 8 --eta 0.1 1.0 3.0 6.0 --t-stat 3000
+```
+
+`--plot-only` reusa los `va.txt` y sólo redibuja, sin volver a simular. La figura que va a la presentación:
+
+![va vs t, rho = 4, con el umbral marcado](../data/va-evolution-b/va_vs_t_rho4.png)
+
+Las otras dos densidades, para verificar que el mismo $t^*$ deja afuera el transitorio
+también ahí. No van a la diapositiva; alcanza con decir que se verificó.
+
+| $\rho = 2$ | $\rho = 8$ |
+|---|---|
+| ![](../data/va-evolution-b/va_vs_t_rho2.png) | ![](../data/va-evolution-b/va_vs_t_rho8.png) |
+
+Además, una figura por modelo de cada densidad (`va_vs_t_rho<ρ>_vicsek.png` y `va_vs_t_rho<ρ>_voter.png`). La que
+pide el punto (f) es la comparada.
+
+## Punto c: $<v_a>$ en función del ruido
+
+
 
 ## Punto g: tiempos de ejecución del CIM
 
@@ -65,30 +109,6 @@ igual `N`, ρ_TP2 = 4 ρ_TP1.
 
 ------------
 
-### Evolución de va (punto b)
-
-El escalar de polarización se promedia solo en el estacionario. $t^*$ es el
-primer tiempo desde el cual $|v_a(t)-\mu|\le\epsilon$ hasta el final, donde
-$\mu$ es la media de $v_a$ desde ese $t^*$ hasta el último paso. `epochs` es
-la longitud mínima de ese sufijo. Un transitorio queda fuera de esa banda.
-
-Casos característicos: Vicsek y votante, $\rho=2,4,8$, $\eta=0.1$. $L=10$,
-10 corridas, 4000 pasos, $\epsilon=0.08$, `epochs=200`.
-
-```bash
-python3 scripts/va_evolution_runner.py \
-	--offlattice-executable build/OffLattice-TP2 \
-	--output-dir data/va-evolution
-```
-
-Salida: una curva por caso (con la vertical en $t^*$), las grillas
-`va_evolucion_vicsek.png` y `va_evolucion_voter.png`, y `stationary.txt` con
-$t^*$ y el $v_a$ escalar ($t \ge t^*$, media entre corridas). Una sola curva:
-
-```bash
-python3 scripts/plot_va.py --input data/va-evolution/vicsek_rho2_eta0.1/va.txt \
-	--epsilon 0.08 --epochs 200
-```
 
 ### Tiempos de CIM (punto g)
 

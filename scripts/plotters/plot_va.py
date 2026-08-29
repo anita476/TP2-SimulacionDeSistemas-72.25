@@ -85,8 +85,10 @@ def plot_va_on_ax(
     std_label: str | None = "desvío entre corridas",
     show_vline: bool = True,
     apply_limits: bool = True,
+    linewidth: float | None = None,
 ) -> None:
-    ax.plot(times, averages, color=color, linestyle=linestyle, zorder=3, label=label)
+    line_kwargs = {} if linewidth is None else {"linewidth": linewidth}
+    ax.plot(times, averages, color=color, linestyle=linestyle, zorder=3, label=label, **line_kwargs)
     if show_std:
         lower = [max(0.0, average - deviation) for average, deviation in zip(averages, deviations)]
         upper = [min(1.0, average + deviation) for average, deviation in zip(averages, deviations)]
@@ -101,7 +103,7 @@ def plot_va_on_ax(
         ax.axvline(stationary_time, color=vline_color, linewidth=1.8, linestyle="--", zorder=4, label=line_label)
     style_axes(ax, "tiempo (s)", "polarización")
     if apply_limits:
-        ax.set_ylim(0.0, 1.0)
+        ax.set_ylim(0.0, 1.02)
         if times:
             ax.set_xlim(times[0], times[-1])
     if legend:

@@ -173,8 +173,13 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("data/figuras/va_vs_s.png"))
     parser.add_argument("--out-txt", type=Path, default=None,
                         help="resumen txt (por defecto: el del --output con extensión .txt)")
-    parser.add_argument("--xlim", type=float, nargs=2, default=None, metavar=("MIN", "MAX"),
-                        help="rango del eje S; por defecto se ajusta a los datos")
+    parser.add_argument("--x", choices=("s", "va"), default="s",
+                        help="qué observable va en el eje x; 's' es lo que pide el enunciado")
+    parser.add_argument("--log", action="store_true",
+                        help="escala logarítmica en el eje de la polarización (guía 2.4.7)")
+    parser.add_argument("--s-lim", "--s_lim", type=float, nargs=2, default=None, metavar=("MIN", "MAX"),
+                        help="rango del eje de S; por defecto se ajusta a los datos")
+
     args = parser.parse_args()
 
     # Los --t-stat se aparean con los --input-dir por posición. Uno solo vale para todos.
@@ -196,45 +201,74 @@ def main() -> None:
     if not rows:
         raise SystemExit("ningún barrido aportó puntos")
 
-    fig, ax = new_figure(width=7.6, height=6.0)
+    fig, ax = new_figure(width=7.8, height=6.0)
     handles: list[Line2D] = []
+    s_en_x = args.x == "s"
 
     for case, points in rows:
         color = COLOR_BY_RHO.get(case.rho, BLUE)
         filled = case.model == "vicsek"
+        dash = "-" if filled else "--"
         style = dict(
             color=color,
             marker=MARKER_BY_RHO.get(case.rho, "o"),
-            linestyle="-" if filled else "--",
+            linestyle=dash,
             markerfacecolor=color if filled else "none",
             markeredgecolor=color,
             markeredgewidth=1.6,
         )
-        # Los puntos se unen en orden de eta
-        ax.errorbar(
-            [p.s for p in points], [p.va for p in points],
-            xerr=[p.s_err for p in points], yerr=[p.va_err for p in points],
-            elinewidth=1.2, ecolor=color, zorder=3, **style,
-        )
-        # La leyenda se arma a mano: el handle que devuelve errorbar arrastra las barras
-        # de error y queda ilegible.
+        s, s_err = [p.s for p in points], [p.s_err for p in points]
+        va, va_err = [p.va for p in points], [p.va_err for p in points]
+        x, xerr, y, yerr = (s, s_err, va, va_err) if s_en_x else (va, va_err, s, s_err)
+
+        # Las barras van finas, translúcidas y por detrás de los símbolos, para no tapar
+        # las curvas; heredan el trazo de su serie para distinguir los dos modelos.
+        bars = ax.errorbar(x, y, xerr=xerr, yerr=yerr, fmt="none", ecolor=color,
+                           elinewidth=0.9, capsize=2.5 if filled else 0, alpha=0.45, zorder=2)
+        for collection in bars[2]:
+            collection.set_linestyle(dash)
+        # Los puntos se unen en orden de eta, que es el parámetro que recorre la curva.
+        ax.plot(x, y, zorder=3, **style)
         handles.append(Line2D([], [], label=case.label, **style))
 
-    style_axes(ax, "fracción del clúster gigante", "polarización")
-    ax.set_ylim(0.0, 1.0)
+    etiqueta = {"s": "fracción del clúster gigante", "va": "polarización"}
+    style_axes(ax, etiqueta[args.x], etiqueta["va" if s_en_x else "s"])
 
     # S satura en 1: el grado medio de la red de vecinos (rho*pi*rc^2 = 6.3, 12.6 y 25)
     # supera el umbral de percolación continua en 2D (~4.5) en las tres densidades, así que
     # la componente gigante abarca casi todo el sistema y <S> vive en una franja angosta
     # pegada a 1. El rango sale de los datos, con un margen que despega del eje los puntos
     # que caen justo en S = 1.
-    if args.xlim is not None:
-        x_min, x_max = args.xlim
+    if args.s_lim is not None:
+        s_lim = tuple(args.s_lim)
     else:
         low = min(p.s - p.s_err for _, points in rows for p in points)
         margin = max(0.004, 0.08 * (1.0 - low))
-        x_min, x_max = low - margin, 1.0 + margin
-    ax.set_xlim(x_min, x_max)
+        s_lim = (low - margin, 1.0 + margin)
+
+    if s_en_x:
+        ax.set_xlim(*s_lim)
+        if args.log:
+            ax.set_yscale("log")
+        else:
+            ax.set_ylim(0.0, 1.02)
+    else:
+        ax.set_ylim(*s_lim)
+        if args.log:
+            ax.set_xscale("log")
+        else:
+            ax.set_xlim(0.0, 1.02)
+
+    if args.log:
+        # style_axes apaga las marcas menores, así que las referencias intermedias van
+        # después. En potencias de diez, como pide la guía 1.9.
+        eje = ax.yaxis if s_en_x else ax.xaxis
+        eje.set_minor_locator(FixedLocator([0.05, 0.2, 0.5]))
+        eje.set_minor_formatter(FixedFormatter(
+            [r"$5\times10^{-2}$", r"$2\times10^{-1}$", r"$5\times10^{-1}$"]))
+        ax.tick_params(axis="y" if s_en_x else "x", which="minor",
+                       labelsize=15, length=4, width=1.0)
+
 
     place_legend_below(fig, handles, [h.get_label() for h in handles], ncol=2)
     save_figure(fig, args.output)
