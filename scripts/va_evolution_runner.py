@@ -9,7 +9,10 @@ from pathlib import Path
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_SCRIPTS = Path(__file__).resolve().parent
+sys.path[:0] = [str(_SCRIPTS), str(_SCRIPTS / "runners"), str(_SCRIPTS / "plotters")]
+
 
 from offlatice_experiment_runner import aggregate, parse_va_output, run_command
 from plot_va import plot_va_on_ax, read_va, scalar_average, slice_va

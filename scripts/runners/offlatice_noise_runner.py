@@ -58,6 +58,21 @@ def read_s_values(path: Path, run: int) -> dict[int, float]:
         raise ValueError(f"run {run}: cluster executable produced no S values")
     return values
 
+def write_run_series(path: Path, va_values: dict[int, float], s_values: dict[int, float]) -> None:
+    """Guarda la serie de una sola corrida, con las dos observables.
+
+    Es lo único que después permite calcular el desvío del escalar entre realizaciones:
+    del agregado no se puede recuperar, porque su tercera columna es la dispersión
+    instantánea, que incluye la fluctuación temporal de cada corrida.
+    """
+    if set(va_values) != set(s_values):
+        raise ValueError(f"{path}: va y S no comparten los mismos tiempos")
+    lines = ["t va s"]
+    for time in sorted(va_values):
+        lines.append(f"{time} {va_values[time]:.17g} {s_values[time]:.17g}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 
 def aggregate(runs: list[dict[int, float]], name: str) -> str:
     times = set(runs[0])
@@ -149,6 +164,8 @@ def main() -> None:
         cluster_dir = case_dir / "cluster-results"
         trajectory_dir.mkdir(parents=True, exist_ok=True)
         cluster_dir.mkdir(parents=True, exist_ok=True)
+        runs_dir = case_dir / "runs"
+        runs_dir.mkdir(parents=True, exist_ok=True)
 
         va_runs: list[dict[int, float]] = []
         s_runs: list[dict[int, float]] = []
@@ -197,6 +214,7 @@ def main() -> None:
             ]
             run_command(cluster_command, run)
             s_runs.append(read_s_values(cluster_path, run))
+            write_run_series(runs_dir / f"run-{run}.txt", va_runs[-1], s_runs[-1])
 
         va_output = case_dir / "va.txt"
         cluster_output = case_dir / "cluster_s.txt"

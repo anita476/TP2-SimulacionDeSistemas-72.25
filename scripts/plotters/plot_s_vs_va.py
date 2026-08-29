@@ -1,143 +1,244 @@
 #!/usr/bin/env python3
-"""Scatter de la fracción S frente a la polarización V_A en la ventana estacionaria."""
+"""Punto (e): polarizacion escalar en funcion de la fraccion del cluster mas grande
+
+Un punto = un valor de eta con coordenadas (<S>,<va>) promediadas desde t* (estacionario) hasta el final de la corrida
+
+t* se elige a ojo observando las evoluciones temporales y se usa con --t-stat [t*]
+"""
+
 
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
-
-
 import sys
+import statistics
+
 from pathlib import Path
+from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from matplotlib.lines import Line2D
+
+from utils.plot_style import BLUE, GREEN, VERMILLION, new_figure, place_legend_below, save_figure, style_axes
+
+# color y marker -> densidad (usamos circulos, triangulos, cuadrados para distintas densidades como lo hacen en el paper de la biblio de FVM)
+# relleno y trazo -> modelo (viscek vs. votante)
+COLOR_BY_RHO = {2.0: BLUE, 4.0: VERMILLION, 8.0: GREEN}
+MARKER_BY_RHO = {2.0: "o", 4.0: "s", 8.0: "D"}
+MODEL_LABEL = {"vicsek": "Vicsek", "voter": "votante"}
 
 
-from plot_s import read_s
-from plot_va import read_va
-from utils.plot_style import BLUE, new_figure, save_figure, style_axes
-from utils.stationary import find_stationary
+class Case(NamedTuple):
+    """Una serie de la figura: un barrido en ruido con el t* que se elige a ojo"""
 
+    model: str
+    rho: float
+    directory: Path
+    t_stat: int
 
+    @property
+    def label(self) -> str:
+        return rf"{MODEL_LABEL[self.model]}, $\rho={self.rho:g}$ m$^{{-2}}$"
+
+class Point(NamedTuple):
+    """Un punto de la figura: un valor de ruido ya promediado en el estacionario."""
+
+    eta: float
+    s: float
+    s_err: float
+    va: float
+    va_err: float
+    
 def read_config_file(path: Path) -> dict[str, str]:
+    config: dict[str, str] = {}
     if not path.is_file():
-        return {}
-    cfg: dict[str, str] = {}
+        return config
     for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or "=" not in stripped:
             continue
         key, value = stripped.split("=", 1)
-        cfg[key.strip()] = value.strip()
-    return cfg
+        config[key.strip()] = value.strip()
+    return config
 
 
-def resolve_parameters(config_path: Path | None, epsilon: float | None, epochs: int | None) -> tuple[float, int]:
-    config = read_config_file(config_path) if config_path is not None else {}
-    resolved_epsilon = epsilon if epsilon is not None else (float(config["epsilon"]) if "epsilon" in config else None)
-    resolved_epochs = epochs if epochs is not None else (int(config["epochs"]) if "epochs" in config else None)
-    if resolved_epsilon is None or resolved_epochs is None:
-        raise ValueError("faltan epsilon o epochs en la config o en la línea de comando")
-    return resolved_epsilon, resolved_epochs
+def load_case(directory: Path, t_stat: int) -> Case:
+    """Arma un Case leyendo el modelo y la densidad del config.txt del barrido
+    """
+    config = read_config_file(directory / "config.txt")
+    try:
+        model, rho = config["model"], float(config["rho"])
+    except (KeyError, ValueError) as error:
+        raise SystemExit(f"{directory}/config.txt: falta model o rho, o son inválidos") from error
+    if model not in MODEL_LABEL:
+        raise SystemExit(f"{directory}/config.txt: modelo desconocido {model!r}")
+    return Case(model, rho, directory, t_stat)
+
+def read_run_series(path: Path) -> tuple[list[int], list[float], list[float]]:
+    """Lee las columnas `t va s` de una corrida."""
+    times, va_values, s_values = [], [], []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines()[1:], 2):
+        if not line.strip():
+            continue
+        fields = line.split()
+        if len(fields) != 3:
+            raise ValueError(f"{path}:{number}: se esperaban las columnas t va s")
+        times.append(int(fields[0]))
+        va_values.append(float(fields[1]))
+        s_values.append(float(fields[2]))
+    return times, va_values, s_values
 
 
-def select_stationary_times(
-    va_times: list[int],
-    va_averages: list[float],
-    s_times: list[int],
-    s_averages: list[float],
-    epsilon: float,
-    epochs: int,
-) -> tuple[int | None, int | None, int | None]:
-    va_tstat = find_stationary(va_times, va_averages, epsilon, epochs)
-    s_tstat = find_stationary(s_times, s_averages, epsilon, epochs)
-    candidates = [t for t in (va_tstat, s_tstat) if t is not None]
-    t_stationary_max = max(candidates) if candidates else None
-    return va_tstat, s_tstat, t_stationary_max
+def scalars_from_runs(case_dir: Path, t_stat: int) -> tuple[float, float, float, float] | None:
+    """(S, S_err, va, va_err) de una carpeta de ruido, o None si no se puede calcular.
+
+    Cada corrida se promedia por separado desde t* hasta el final; el escalar es la media
+    de esos números y el error, su desvío. Eso mide cuán reproducible es el escalar, que es
+    lo que va en la barra. Promediar en cambio la columna std del agregado mide la
+    dispersión instantánea, que incluye la fluctuación temporal y da hasta 4 veces más
+    grande en el votante.
+    """
+    run_files = sorted((case_dir / "runs").glob("run-*.txt"))
+    if len(run_files) < 2:
+        print(f"se omite {case_dir}: hacen falta al menos 2 corridas en runs/ y hay {len(run_files)}")
+        return None
+
+    va_means, s_means = [], []
+    for run_file in run_files:
+        times, va_values, s_values = read_run_series(run_file)
+        window = [(v, s) for t, v, s in zip(times, va_values, s_values) if t >= t_stat]
+        if not window:
+            print(f"se omite {case_dir}: no hay muestras con t >= {t_stat}")
+            return None
+        va_means.append(statistics.fmean(v for v, _ in window))
+        s_means.append(statistics.fmean(s for _, s in window))
+
+    return (
+        statistics.fmean(s_means), statistics.stdev(s_means),
+        statistics.fmean(va_means), statistics.stdev(va_means),
+    )
 
 
-def build_points(
-    va_times: list[int],
-    va_averages: list[float],
-    s_times: list[int],
-    s_averages: list[float],
-    t_stationary_max: int,
-) -> tuple[list[float], list[float]]:
-    va_by_time = {time: average for time, average in zip(va_times, va_averages)}
-    s_by_time = {time: average for time, average in zip(s_times, s_averages)}
-    common_times = sorted(time for time in va_by_time if time in s_by_time and time >= t_stationary_max)
-    if not common_times:
-        raise ValueError(f"no hay tiempos con t >= {t_stationary_max} en ambos archivos")
-    x = [va_by_time[time] for time in common_times]
-    y = [s_by_time[time] for time in common_times]
-    return x, y
+def collect_points(case: Case) -> list[Point]:
+    """Un Point por cada carpeta eta* del barrido, ordenados por ruido."""
+    points: list[Point] = []
+    for entry in sorted(case.directory.iterdir()):
+        if not entry.is_dir() or not entry.name.startswith("eta"):
+            continue
+        try:
+            eta = float(entry.name[3:])
+        except ValueError:
+            continue
+        try:
+            scalars = scalars_from_runs(entry, case.t_stat)
+        except (OSError, ValueError) as error:
+            print(f"se omite {entry}: {error}")
+            continue
+        if scalars is not None:
+            points.append(Point(eta, *scalars))
+
+    points.sort(key=lambda point: point.eta)
+    return points
 
 
+
+def write_summary(path: Path, rows: list[tuple[Case, list[Point]]]) -> None:
+    """Deja escalares en texto para poder citarlos sin volver a correr el plotter."""
+    lines = [
+        "# punto (e): cada fila es un punto de la figura va vs S",
+        "# los escalares se promedian desde t_stat (elegido a ojo) hasta el final de la corrida",
+        "# el error es el desvío entre realizaciones promediado en esa misma ventana",
+        "modelo rho eta t_stat S S_err va va_err",
+    ]
+    for case, points in rows:
+        for p in points:
+            lines.append(
+                f"{case.model} {case.rho:g} {p.eta:g} {case.t_stat} "
+                f"{p.s:.6g} {p.s_err:.6g} {p.va:.6g} {p.va_err:.6g}"
+            )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"se escribió {path}")
+    
+    
+    
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", type=Path, help="directorio del experimento con va.txt y cluster_s.txt")
-    parser.add_argument("--va", type=Path, help="ruta a va.txt (opcional si se da --input-dir)")
-    parser.add_argument("--s", type=Path, help="ruta a cluster_s.txt (opcional si se da --input-dir)")
-    parser.add_argument("--output", type=Path, default=None, help="ruta de salida; por defecto se escribe en la carpeta del experimento")
-    parser.add_argument("--epsilon", type=float, default=None, help="pisa epsilon del config.txt")
-    parser.add_argument("--epochs", type=int, default=None, help="pisa epochs del config.txt")
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--input-dir", dest="input_dirs", action="append", type=Path, required=True,
+                        metavar="DIR", help="barrido en ruido de una densidad y un modelo; repetible")
+    parser.add_argument("--t-stat", "--t_stat", dest="t_stats", action="append", type=int, required=True,
+                        metavar="T", help="inicio del estacionario de ese barrido; uno por --input-dir, o uno solo para todos")
+    parser.add_argument("--output", type=Path, default=Path("data/figuras/va_vs_s.png"))
+    parser.add_argument("--out-txt", type=Path, default=None,
+                        help="resumen txt (por defecto: el del --output con extensión .txt)")
+    parser.add_argument("--xlim", type=float, nargs=2, default=None, metavar=("MIN", "MAX"),
+                        help="rango del eje S; por defecto se ajusta a los datos")
     args = parser.parse_args()
 
-    if args.input_dir is None and (args.va is None or args.s is None):
-        parser.error("debe indicar --input-dir o bien --va y --s")
-
-    if args.input_dir is not None:
-        va_path = args.input_dir / "va.txt"
-        s_path = args.input_dir / "cluster_s.txt"
-        output_path = args.output or (args.input_dir / "s_vs_va.png")
-        config_path = args.input_dir / "config.txt"
+    # Los --t-stat se aparean con los --input-dir por posición. Uno solo vale para todos.
+    if len(args.t_stats) == 1:
+        t_stats = args.t_stats * len(args.input_dirs)
+    elif len(args.t_stats) == len(args.input_dirs):
+        t_stats = args.t_stats
     else:
-        va_path = args.va
-        s_path = args.s
-        output_path = args.output or (va_path.parent / "s_vs_va.png")
-        config_path = va_path.parent / "config.txt"
+        parser.error(f"se dieron {len(args.input_dirs)} --input-dir y {len(args.t_stats)} --t-stat: "
+                     "tiene que haber uno por directorio, o uno solo para todos")
 
-    for path, label in ((va_path, "va.txt"), (s_path, "cluster_s.txt")):
-        if not path.is_file():
-            parser.error(f"{path}: no existe {label}")
+    for directory in args.input_dirs:
+        if not directory.is_dir():
+            parser.error(f"{directory}: no es un directorio")
 
-    try:
-        epsilon, epochs = resolve_parameters(config_path, args.epsilon, args.epochs)
-    except ValueError as error:
-        parser.error(str(error))
+    cases = [load_case(directory, t_stat) for directory, t_stat in zip(args.input_dirs, t_stats)]
+    rows = [(case, collect_points(case)) for case in cases]
+    rows = [(case, points) for case, points in rows if points]
+    if not rows:
+        raise SystemExit("ningún barrido aportó puntos")
 
-    try:
-        va_times, va_averages, _ = read_va(va_path)
-        s_times, s_averages, _ = read_s(s_path)
-    except (OSError, ValueError) as error:
-        parser.error(str(error))
+    fig, ax = new_figure(width=7.6, height=6.0)
+    handles: list[Line2D] = []
 
-    va_tstat, s_tstat, t_stationary_max = select_stationary_times(va_times, va_averages, s_times, s_averages, epsilon, epochs)
-    if t_stationary_max is None:
-        raise SystemExit("no se encontró un tiempo estacionario para va ni para s")
+    for case, points in rows:
+        color = COLOR_BY_RHO.get(case.rho, BLUE)
+        filled = case.model == "vicsek"
+        style = dict(
+            color=color,
+            marker=MARKER_BY_RHO.get(case.rho, "o"),
+            linestyle="-" if filled else "--",
+            markerfacecolor=color if filled else "none",
+            markeredgecolor=color,
+            markeredgewidth=1.6,
+        )
+        # Los puntos se unen en orden de eta
+        ax.errorbar(
+            [p.s for p in points], [p.va for p in points],
+            xerr=[p.s_err for p in points], yerr=[p.va_err for p in points],
+            elinewidth=1.2, ecolor=color, zorder=3, **style,
+        )
+        # La leyenda se arma a mano: el handle que devuelve errorbar arrastra las barras
+        # de error y queda ilegible.
+        handles.append(Line2D([], [], label=case.label, **style))
 
-    try:
-        x, y = build_points(va_times, va_averages, s_times, s_averages, t_stationary_max)
-    except ValueError as error:
-        parser.error(str(error))
+    style_axes(ax, "fracción del clúster gigante", "polarización")
+    ax.set_ylim(0.0, 1.0)
 
-    print(f"tiempo estacionario va: {va_tstat}")
-    print(f"tiempo estacionario s: {s_tstat}")
-    print(f"t_stationary_max: {t_stationary_max}")
+    # S satura en 1: el grado medio de la red de vecinos (rho*pi*rc^2 = 6.3, 12.6 y 25)
+    # supera el umbral de percolación continua en 2D (~4.5) en las tres densidades, así que
+    # la componente gigante abarca casi todo el sistema y <S> vive en una franja angosta
+    # pegada a 1. El rango sale de los datos, con un margen que despega del eje los puntos
+    # que caen justo en S = 1.
+    if args.xlim is not None:
+        x_min, x_max = args.xlim
+    else:
+        low = min(p.s - p.s_err for _, points in rows for p in points)
+        margin = max(0.004, 0.08 * (1.0 - low))
+        x_min, x_max = low - margin, 1.0 + margin
+    ax.set_xlim(x_min, x_max)
 
-    fig, ax = new_figure()
-    ax.scatter(x, y, color=BLUE, s=34, alpha=0.85, zorder=3)
-    style_axes(ax, "polarización", "fracción del clúster gigante")
-
-    x_min, x_max = min(x), max(x)
-    y_min, y_max = min(y), max(y)
-    x_pad = max(0.02, 0.08 * (x_max - x_min if x_max > x_min else 0.1))
-    y_pad = max(0.02, 0.08 * (y_max - y_min if y_max > y_min else 0.1))
-    ax.set_xlim(x_min - x_pad, x_max + x_pad)
-    ax.set_ylim(y_min - y_pad, y_max + y_pad)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, output_path)
+    place_legend_below(fig, handles, [h.get_label() for h in handles], ncol=2)
+    save_figure(fig, args.output)
+    write_summary(args.out_txt or args.output.with_suffix(".txt"), rows)
 
 
 if __name__ == "__main__":

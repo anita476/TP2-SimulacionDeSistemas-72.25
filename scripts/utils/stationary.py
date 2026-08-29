@@ -1,3 +1,4 @@
+# TODO: cannot use this
 
 def find_stationary(times: list[int], averages: list[float], epsilon: float, epochs: int) -> int | None:
     """Devuelve el primer t a partir del cual la serie queda a menos de epsilon de la media del sufijo. `epochs` es la longitud mínima de ese sufijo.
