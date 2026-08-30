@@ -207,7 +207,7 @@ def series_style(case: Case) -> dict[str, object]:
     return dict(
         color=color,
         marker=MARKER_BY_RHO.get(case.rho, "o"),
-        linestyle="-" if filled else "--",
+        linestyle="-" if filled else (0, (1.8, 1.8)),
         markerfacecolor=color if filled else "none",
         markeredgecolor=color,
         markeredgewidth=1.6,

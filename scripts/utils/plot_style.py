@@ -32,24 +32,33 @@ SERIES = (BLUE, VERMILLION, GREEN, PURPLE, ORANGE, NAVY)
 
 
 def eta_colors(n: int) -> list:
-    """n colores de una rampa, evitando los extremos ilegibles del mapa."""
+    """n colores de una rampa morado -> magenta -> rosa para el ruido.
+
+    La corrección pide "del azul al rojo pasando por el verde", pero azul, verde y
+    bermellón son los tres colores fijos de la densidad (`COLOR_BY_RHO`): reusarlos
+    haría que el mismo color signifique densidad en una figura y ruido en la de al
+    lado.  Esta rampa no toca ninguno de los tres y cumple lo que la corrección
+    buscaba, que era que las series se distinguieran entre sí.
+    """
     cmap = plt.get_cmap("plasma")
     if n == 1:
         return [cmap(0.35)]
-    return [cmap(0.15 + 0.60 * i / (n - 1)) for i in range(n)]
+    return [cmap(0.15 + 0.55 * i / (n - 1)) for i in range(n)]
 MARKERS = ("o", "s", "D", "^", "v", "P")
 
 
 MODELS = ("vicsek", "voter")
 MODEL_LABELS = {"vicsek": "Vicsek", "voter": "votante"}
-MODEL_LINESTYLES = {"vicsek": "-", "voter": (0, (12, 5))}
-MODEL_LINEWIDTHS = {"vicsek": 1.7, "voter": 1.0}
+MODEL_LINESTYLES = {"vicsek": "-", "voter": (0, (1.8, 1.8))}
+MODEL_LINEWIDTHS = {"vicsek": 1.7, "voter": 1.7}
 
 
 EVOLUTION_SIZE = (9.0, 6.5)
 EVOLUTION_FONT_SCALE = 1.15
 EVOLUTION_LINE_WIDTH = 1.2
-EVOLUTION_TSTAR_COLOR = "#CC0000"
+# Negro: el rojo se confundia con la serie de rho = 4 (bermellon) y con el
+# extremo de la rampa de ruido.  La vertical no es un dato, es una referencia.
+EVOLUTION_TSTAR_COLOR = "black"
 
 _APPLIED = False
 
@@ -189,6 +198,10 @@ def _center_legend_on_axes(fig) -> None:
     centro = caja.x0 + 0.5 * caja.width
     for leyenda in fig.legends:
         bb = leyenda.get_window_extent().transformed(fig.transFigure.inverted())
+        # El ancla es la caja que ya ocupa, corrida en x.  Y el loc pasa a "center":
+        # con "outside lower center" matplotlib la reubica dentro del ancla y se
+        # sube encima del rótulo del eje x.
+        leyenda.set_loc("center")
         leyenda.set_bbox_to_anchor(
             (bb.x0 + centro - (bb.x0 + 0.5 * bb.width), bb.y0, bb.width, bb.height),
             transform=fig.transFigure)

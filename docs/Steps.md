@@ -152,14 +152,16 @@ Con estos ruidos, entre $\eta = 4$ y $\eta = 5$ la curva de Vicsek a $\rho = 4$ 
 Por eso se agregaron seis ruidos, tres en cada caída:
 
 ```
-0.15 0.2 0.35        (abre la caída del votante)
+0 0.15 0.2 0.35        (abre la caída del votante)
 4.25 4.5 4.75        (abre la de Vicsek)
 ```
 
-**La grilla final, que es la que usa el comando de abajo, son los 19 valores juntos:**
+
+
+**La grilla final son 20 valores:**
 
 ```
-0.1 0.15 0.2 0.25 0.35 0.5 0.75 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.25 4.5 4.75 5.0 6.0
+0 0.1 0.15 0.2 0.25 0.35 0.5 0.75 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.25 4.5 4.75 5.0 6.0
 ```
 
 ### 3.2 Correr el barrido
@@ -174,7 +176,7 @@ for modelo in vicsek voter; do
         --cluster-executable build/Cluster-TP2 \
         --output-dir data/noise-sweep-c/${modelo}_rho${rho} \
         --model $modelo --rho $rho \
-        --noise-list 0.1 0.15 0.2 0.25 0.35 0.5 0.75 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.25 4.5 4.75 5.0 6.0 \
+        --noise-list 0 0.1 0.15 0.2 0.25 0.35 0.5 0.75 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.25 4.5 4.75 5.0 6.0 \
         --runs 10 --steps 10000 --stride 10 \
         -L 10 --rc 1 --speed 0.03
     rm -rf data/noise-sweep-c/${modelo}_rho${rho}/eta*/trajectories \
