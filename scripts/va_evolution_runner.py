@@ -37,6 +37,8 @@ from utils.plot_style import (
     MODEL_LINEWIDTHS,
     MODELS,
     SERIES,
+    apply_sci_axis,
+    eta_colors,
     new_figure,
     place_legend_below,
     save_figure,
@@ -231,7 +233,7 @@ def plot_evolutions(
                 deviations,
                 None,
                 show_std=show_std,
-                color=SERIES[etas.index(eta) % len(SERIES)],
+                color=eta_colors(len(etas))[etas.index(eta)],
                 linestyle=MODEL_LINESTYLES[model],
                 linewidth=MODEL_LINEWIDTHS[model],
                 label=None,
@@ -252,19 +254,22 @@ def plot_evolutions(
                 linewidth=EVOLUTION_LINE_WIDTH * 1.5,
                 linestyle=":",
                 zorder=4,
-                label=rf"inicio del estacionario ($t={threshold}$ s)" if index == 0 else None,
+                # La leyenda solo lleva lo que varia (correccion): t* es constante
+                # y se explica al costado de la figura, en la diapositiva.
+                label=None,
             )
 
         ax.set_ylim(0.0, 1.02)
         if x_left is not None and x_right is not None:
             ax.set_xlim(x_left, x_right)
-        ax.ticklabel_format(axis="x", style="plain")
+        # Guia 1.9: potencias de 10 tambien en las figuras.  useMathText evita el "1e4".
+        apply_sci_axis(ax, "x", scilimits=(3, 3))
         fig.get_layout_engine().set(h_pad=0.15)
 
         modelos = [name for name in MODELS if any(row["model"] == name for row in rows)]
         fila_eta = [
-            (Line2D([], [], color=SERIES[index % len(SERIES)], linestyle="-", linewidth=1.7),
-             rf"$\eta={eta:g}$")
+            (Line2D([], [], color=eta_colors(len(etas))[index], linestyle="-", linewidth=1.7),
+             rf"$\eta={eta:g}$ rad")
             for index, eta in enumerate(etas)
         ]
         fila_modelo = [
@@ -273,20 +278,22 @@ def plot_evolutions(
              MODEL_LABELS[name])
             for name in (modelos if len(modelos) > 1 else [])
         ]
-        if thresholds:
-            fila_modelo.append(
-                (Line2D([], [], color=EVOLUTION_TSTAR_COLOR, linestyle=":",
-                        linewidth=EVOLUTION_LINE_WIDTH * 1.5),
-                 rf"$t^*={thresholds[0]}$ s")
-            )
+        # t* NO va en la leyenda: es constante, y la correccion pide que en la figura
+        # solo queden los valores que varian.  La vertical se explica al costado.
 
-        # matplotlib llena la leyenda por columnas, así que para que cada fila salga
-        # entera hay que emparejar las dos listas e intercalarlas.
-        ncol = max(len(fila_eta), len(fila_modelo))
-        vacio = (Line2D([], [], linestyle="none"), "")
-        fila_eta += [vacio] * (ncol - len(fila_eta))
-        fila_modelo += [vacio] * (ncol - len(fila_modelo))
-        entradas = [entry for par in zip(fila_eta, fila_modelo) for entry in par]
+        # Con las dos filas (eta y modelo) matplotlib llena por columnas, así que hay
+        # que emparejarlas e intercalarlas para que cada fila salga entera.  Sin fila
+        # de modelo no hay nada que intercalar: rellenar con huecos dejaba una segunda
+        # fila vacía ocupando lugar.
+        if fila_modelo:
+            ncol = max(len(fila_eta), len(fila_modelo))
+            vacio = (Line2D([], [], linestyle="none"), "")
+            fila_eta += [vacio] * (ncol - len(fila_eta))
+            fila_modelo += [vacio] * (ncol - len(fila_modelo))
+            entradas = [entry for par in zip(fila_eta, fila_modelo) for entry in par]
+        else:
+            entradas = fila_eta
+            ncol = len(fila_eta)
         place_legend_below(
             fig, [h for h, _ in entradas], [l for _, l in entradas], ncol=ncol
         )
@@ -424,7 +431,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--std",
         action="store_true",
-        help="agregar la banda de desvío; con varias curvas superpuestas tapa el patrón, por eso está apagada",
+        help="agregar la banda de desvío entre corridas; es lo que usan las figuras de la presentación",
     )
     parser.add_argument("--no-single-plots", action="store_true", help="no generar el va.png de cada caso")
     parser.add_argument("--plot-only", action="store_true", help="reutilizar los va.txt ya presentes en --output-dir")

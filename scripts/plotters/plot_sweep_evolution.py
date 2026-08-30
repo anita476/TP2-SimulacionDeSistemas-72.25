@@ -28,6 +28,8 @@ from utils.plot_style import (
     MODEL_LABELS,
     MODEL_LINESTYLES,
     SERIES,
+    apply_sci_axis,
+    eta_colors,
     new_figure,
     place_legend_below,
     save_figure,
@@ -47,7 +49,9 @@ from utils.sweeps import (
 OBSERVABLES = {
     # nombre -> (archivo agregado, columna, etiqueta del eje y, límites)
     "va": ("va.txt", "va", "polarización", (0.0, 1.02)),
-    "s": ("cluster_s.txt", "s", "fracción del clúster gigante", None),
+    # Autoescala: con la banda de desvío el rango real llega a ~0.8 y un límite fijo
+    # recortaría; los propios números del eje avisan que S se mueve poco.
+    "s": ("cluster_s.txt", "s", "fracción de la componente gigante", None),
 }
 
 
@@ -58,6 +62,7 @@ class Serie(NamedTuple):
     eta: float
     times: list[int]
     values: list[float]
+    stds: list[float]
 
 
 def collect_series(case: Case, etas: list[float] | None, observable: str) -> list[Serie]:
@@ -67,11 +72,11 @@ def collect_series(case: Case, etas: list[float] | None, observable: str) -> lis
         if etas is not None and not any(abs(eta - pedido) < 1e-9 for pedido in etas):
             continue
         try:
-            times, averages, _ = read_aggregate(directory / archivo, columna)
+            times, averages, stds = read_aggregate(directory / archivo, columna)
         except (OSError, ValueError) as error:
             print(f"se omite {directory}: {error}")
             continue
-        series.append(Serie(case, eta, times, averages))
+        series.append(Serie(case, eta, times, averages, stds))
     return series
 
 
@@ -110,16 +115,25 @@ def main() -> None:
         fig, ax = new_figure(*EVOLUTION_SIZE)
         for serie in series:
             case = serie.case
-            color = (SERIES[etas.index(serie.eta) % len(SERIES)] if color_por_eta
+            color = (eta_colors(len(etas))[etas.index(serie.eta)] if color_por_eta
                      else COLOR_BY_RHO.get(case.rho, SERIES[rhos.index(case.rho) % len(SERIES)]))
             ax.plot(serie.times, serie.values, color=color,
                     linestyle=MODEL_LINESTYLES[case.model] if len(modelos) > 1 else "-", zorder=3)
+            # La banda es el desvío entre corridas, igual que en las figuras de va.
+            # Recortada a [0, 1] como en plot_va: los dos observables están acotados
+            # ahí, y sin recortar la banda dibuja S > 1, que no existe.
+            ax.fill_between(serie.times,
+                            [max(0.0, v - d) for v, d in zip(serie.values, serie.stds)],
+                            [min(1.0, v + d) for v, d in zip(serie.values, serie.stds)],
+                            color=color, alpha=0.18, linewidth=0, zorder=2)
 
         for t_stat in umbrales:
             ax.axvline(t_stat, color=EVOLUTION_TSTAR_COLOR, linestyle=":",
                        linewidth=EVOLUTION_LINE_WIDTH * 1.5, zorder=4)
 
         style_axes(ax, "tiempo (s)", ylabel)
+        # Guia 1.9, y el mismo x10^3 que las figuras de va del ciclo del ruido.
+        apply_sci_axis(ax, "x", scilimits=(3, 3))
         if ylim is not None:
             ax.set_ylim(*ylim)
         ax.set_xlim(min(s.times[0] for s in series), max(s.times[-1] for s in series))
@@ -128,8 +142,8 @@ def main() -> None:
         # la figura, en la diapositiva.
         entradas: list[tuple[Line2D, str]] = []
         if color_por_eta:
-            entradas += [(Line2D([], [], color=SERIES[i % len(SERIES)], linestyle="-"),
-                          rf"$\eta={eta:g}$") for i, eta in enumerate(etas)]
+            entradas += [(Line2D([], [], color=eta_colors(len(etas))[i], linestyle="-"),
+                          rf"$\eta={eta:g}$ rad") for i, eta in enumerate(etas)]
         elif len(rhos) > 1:
             entradas += [(Line2D([], [], color=COLOR_BY_RHO.get(rho, SERIES[i % len(SERIES)]),
                                  linestyle="-"), rf"$\rho={rho:g}$ m$^{{-2}}$")
@@ -137,9 +151,7 @@ def main() -> None:
         if len(modelos) > 1:
             entradas += [(Line2D([], [], color="0.35", linestyle=MODEL_LINESTYLES[name]),
                           MODEL_LABELS[name]) for name in modelos]
-        entradas += [(Line2D([], [], color=EVOLUTION_TSTAR_COLOR, linestyle=":",
-                             linewidth=EVOLUTION_LINE_WIDTH * 1.5), rf"$t^*={t_stat}$ s")
-                     for t_stat in umbrales]
+        # t* NO va en la leyenda: es constante y se explica al costado de la figura.
         # Handle largo: el trazo del votante es un guión de 12 pt y con el ancho por
         # defecto la muestra de la leyenda no llega a mostrarlo.
         place_legend_below(fig, [h for h, _ in entradas], [l for _, l in entradas],

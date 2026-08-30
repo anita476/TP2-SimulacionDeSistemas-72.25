@@ -267,10 +267,13 @@ def plot_scalar_vs_eta(
         margin = max(0.004, 0.08 * (high - low))
         ax.set_ylim(low - margin, min(1.0, high) + margin)
 
-    # Con las dos mitades de la leyenda apiladas en una columna por modelo se lee de un
-    # vistazo qué serie es de cuál; con un solo modelo, una fila alcanza.
-    place_legend_below(fig, handles, [h.get_label() for h in handles],
-                       ncol=1 if un_solo_modelo else 2)
+    if un_solo_modelo:
+        orden, ncol = handles, len(handles)
+    else:
+        mitad = len(handles) // 2
+        orden = [h for par in zip(handles[:mitad], handles[mitad:]) for h in par]
+        ncol = mitad
+    place_legend_below(fig, orden, [h.get_label() for h in orden], ncol=ncol)
     save_figure(fig, output)
 
 

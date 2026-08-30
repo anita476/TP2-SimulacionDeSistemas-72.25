@@ -101,7 +101,7 @@ def main() -> None:
             Line2D([], [], label=case.rho_label if un_solo_modelo else case.label, **style)
         )
 
-    etiqueta = {"s": "fracción del clúster gigante", "va": "polarización"}
+    etiqueta = {"s": "fracción de la componente gigante", "va": "polarización"}
     style_axes(ax, etiqueta[args.x], etiqueta["va" if s_en_x else "s"])
 
 
@@ -134,8 +134,14 @@ def main() -> None:
                        labelsize=15, length=4, width=1.0)
 
 
-    place_legend_below(fig, handles, [h.get_label() for h in handles],
-                       ncol=1 if un_solo_modelo else 2)
+    # Ídem sweeps.py: una fila con un solo modelo; con los dos, una fila por modelo.
+    if un_solo_modelo:
+        orden, ncol = handles, len(handles)
+    else:
+        mitad = len(handles) // 2
+        orden = [h for par in zip(handles[:mitad], handles[mitad:]) for h in par]
+        ncol = mitad
+    place_legend_below(fig, orden, [h.get_label() for h in orden], ncol=ncol)
     save_figure(fig, args.output)
     write_summary(args.out_txt or args.output.with_suffix(".txt"), rows)
 

@@ -29,6 +29,14 @@ PURPLE = "#CC79A7"
 ORANGE = "#E69F00"
 NAVY = "#332288"
 SERIES = (BLUE, VERMILLION, GREEN, PURPLE, ORANGE, NAVY)
+
+
+def eta_colors(n: int) -> list:
+    """n colores de una rampa, evitando los extremos ilegibles del mapa."""
+    cmap = plt.get_cmap("plasma")
+    if n == 1:
+        return [cmap(0.35)]
+    return [cmap(0.15 + 0.60 * i / (n - 1)) for i in range(n)]
 MARKERS = ("o", "s", "D", "^", "v", "P")
 
 
@@ -38,7 +46,7 @@ MODEL_LINESTYLES = {"vicsek": "-", "voter": (0, (12, 5))}
 MODEL_LINEWIDTHS = {"vicsek": 1.7, "voter": 1.0}
 
 
-EVOLUTION_SIZE = (11.0, 6.0)
+EVOLUTION_SIZE = (9.0, 6.5)
 EVOLUTION_FONT_SCALE = 1.15
 EVOLUTION_LINE_WIDTH = 1.2
 EVOLUTION_TSTAR_COLOR = "#CC0000"
@@ -165,17 +173,33 @@ def style_axes(ax, xlabel: str, ylabel: str) -> None:
         spine.set_linewidth(matplotlib.rcParams["axes.linewidth"])
 
 
-def apply_sci_axis(ax, axis: str = "y") -> None:
-    ax.ticklabel_format(axis=axis, style="sci", scilimits=(-2, 4), useMathText=True)
+def apply_sci_axis(ax, axis: str = "y", scilimits: tuple[int, int] = (-2, 4)) -> None:
+    ax.ticklabel_format(axis=axis, style="sci", scilimits=scilimits, useMathText=True)
     offset = ax.yaxis.get_offset_text() if axis == "y" else ax.xaxis.get_offset_text()
     offset.set_fontsize(FONT_SIZE)
     offset.set_fontfamily("serif")
+
+
+def _center_legend_on_axes(fig) -> None:
+    """Corre la leyenda para que quede centrada bajo los ejes, no bajo la figura.
+    """
+    if not fig.legends or not fig.axes:
+        return
+    caja = fig.axes[0].get_position()
+    centro = caja.x0 + 0.5 * caja.width
+    for leyenda in fig.legends:
+        bb = leyenda.get_window_extent().transformed(fig.transFigure.inverted())
+        leyenda.set_bbox_to_anchor(
+            (bb.x0 + centro - (bb.x0 + 0.5 * bb.width), bb.y0, bb.width, bb.height),
+            transform=fig.transFigure)
 
 
 def save_figure(fig, path: Path) -> None:
     apply_academic_style()
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.canvas.draw()
+    fig.set_layout_engine("none")
+    _center_legend_on_axes(fig)
     fig.savefig(path, dpi=SAVE_DPI, bbox_inches="tight", pad_inches=0.12, facecolor="white")
     plt.close(fig)
     print(f"se escribió {path}")

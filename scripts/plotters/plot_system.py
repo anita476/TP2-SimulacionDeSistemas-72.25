@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Esquema del sistema simulado: la caja L x L, el radio de interaccion r y el contorno periodico.
+"""Esquema del sistema simulado: la caja L x L, el radio de interaccion r_c y el contorno periodico.
 
     python3 scripts/plotters/plot_system.py
     python3 scripts/plotters/plot_system.py --output data/figuras/sistema.png
@@ -98,7 +98,7 @@ def annotate_r(ax, center, radius: float, angle: float) -> None:
                                 shrinkA=0, shrinkB=0, mutation_scale=13))
     # La etiqueta va afuera del disco, prolongando la cota: adentro cae sobre una vecina.
     label = (center[0] + 1.20 * radius * np.cos(angle), center[1] + 1.20 * radius * np.sin(angle))
-    ax.text(label[0], label[1], "$r$", color=DIMENSION, ha="right", va="top", zorder=7)
+    ax.text(label[0], label[1], "$r_c$", color=DIMENSION, ha="right", va="top", zorder=7)
 
 
 def annotate_l(ax, box: float, offset: float) -> None:

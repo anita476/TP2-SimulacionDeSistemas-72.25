@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Punto (d): fracción del clúster gigante en función del ruido.
+"""Punto (d): fracción de la componente gigante en función del ruido.
 
 
 
@@ -66,7 +66,7 @@ def main() -> None:
         # angosta pegada a 1, y un 0 a 1 fijo deja la figura vacía.
         plot_scalar_vs_eta(
             subset, output,
-            ylabel="fracción del clúster gigante",
+            ylabel="fracción de la componente gigante",
             value=lambda point: point.s,
             error=lambda point: point.s_err,
             ylim=tuple(args.y_lim) if args.y_lim else None,
