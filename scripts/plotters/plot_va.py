@@ -2,7 +2,6 @@
 """Grafica la polarización media en función del tiempo a partir de un archivo agregado."""
 
 from __future__ import annotations
-from utils.stationary import find_stationary
 
 import argparse
 import csv
@@ -14,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.plot_style import BLUE, VERMILLION, new_figure, place_legend_below, save_figure, style_axes
+from utils.stationary import find_stationary
 
 def read_va(path: Path) -> tuple[list[int], list[float], list[float]]:
     """Lee las columnas t, average_va y std_va de un archivo agregado."""

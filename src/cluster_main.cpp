@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
         result << "cluster " << index << ' ' << clusters[index].size();
         for (int node : clusters[index])
           result << ' ' << node;
-          result << '\n';
+        result << '\n';
       }
     }
     if (cim_trace.is_open() && cim_searches > 0) {

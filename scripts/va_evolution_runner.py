@@ -22,6 +22,10 @@ import sys
 _SCRIPTS = Path(__file__).resolve().parent
 sys.path[:0] = [str(_SCRIPTS), str(_SCRIPTS / "runners"), str(_SCRIPTS / "plotters")]
 
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(errors="replace")
+
 
 from offlatice_experiment_runner import aggregate, parse_va_output, run_command
 from plot_va import plot_va_on_ax, read_va, scalar_average, slice_va
@@ -465,7 +469,11 @@ def main() -> None:
                     chosen_t_stat.get(model),
                 )
                 if not args.no_single_plots:
-                    plot_single(row, va_path.with_suffix(".png"), args.t_min, args.t_max)
+                    try:
+                        plot_single(row, va_path.with_suffix(".png"), args.t_min, args.t_max)
+                    except Exception as error:
+                        print(f"  no se pudo graficar {va_path.with_suffix('.png')}: {error}",
+                              flush=True)
                 rows.append(row)
 
     # Una figura por densidad: adentro varían el ruido y el modelo.  A la diapositiva va
