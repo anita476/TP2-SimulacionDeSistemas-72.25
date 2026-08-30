@@ -31,6 +31,18 @@ NAVY = "#332288"
 SERIES = (BLUE, VERMILLION, GREEN, PURPLE, ORANGE, NAVY)
 MARKERS = ("o", "s", "D", "^", "v", "P")
 
+
+MODELS = ("vicsek", "voter")
+MODEL_LABELS = {"vicsek": "Vicsek", "voter": "votante"}
+MODEL_LINESTYLES = {"vicsek": "-", "voter": (0, (12, 5))}
+MODEL_LINEWIDTHS = {"vicsek": 1.7, "voter": 1.0}
+
+
+EVOLUTION_SIZE = (11.0, 6.0)
+EVOLUTION_FONT_SCALE = 1.15
+EVOLUTION_LINE_WIDTH = 1.2
+EVOLUTION_TSTAR_COLOR = "#CC0000"
+
 _APPLIED = False
 
 

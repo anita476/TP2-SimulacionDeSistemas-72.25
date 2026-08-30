@@ -63,7 +63,9 @@ def aggregate(runs: list[dict[int, float]], name: str) -> str:
     for time in sorted(times):
         samples = [values[time] for values in runs]
         average = statistics.fmean(samples)
-        deviation = statistics.pstdev(samples)
+        # Desvio muestral (n-1), el mismo estimador con el que utils/sweeps.py arma la
+        # barra de error del escalar. Con una sola corrida no hay dispersion que medir.
+        deviation = statistics.stdev(samples) if len(samples) > 1 else 0.0
         lines.append(f"{time} {average:.17g} {deviation:.17g}")
     return "\n".join(lines) + "\n"
 

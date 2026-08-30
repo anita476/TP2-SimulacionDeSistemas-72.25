@@ -82,9 +82,53 @@ def aggregate(runs: list[dict[int, float]], name: str) -> str:
     for time in sorted(times):
         samples = [values[time] for values in runs]
         average = statistics.fmean(samples)
-        deviation = statistics.pstdev(samples)
+        # Desvio muestral (n-1), el mismo estimador con el que utils/sweeps.py arma la
+        # barra de error del escalar. Con una sola corrida no hay dispersion que medir.
+        deviation = statistics.stdev(samples) if len(samples) > 1 else 0.0
         lines.append(f"{time} {average:.17g} {deviation:.17g}")
     return "\n".join(lines) + "\n"
+
+
+def read_config(path: Path) -> dict[str, str]:
+    """Lee un `config.txt` (`clave=valor`, con `# config` de encabezado)."""
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        if separator:
+            values[key.strip()] = value.strip()
+    return values
+
+
+def merge_noise_lists(previous: str, current: str) -> str:
+    """Une dos `noise_list`, sin repetidos y ordenados por valor."""
+    values = {float(field) for field in (previous + " " + current).split()}
+    return " ".join(f"{value:g}" for value in sorted(values))
+
+
+def write_top_config(path: Path, config: dict[str, object]) -> None:
+    """Escribe el config del barrido, acumulando sobre el que ya estaba
+    """
+    if path.is_file():
+        previous = read_config(path)
+        differences = [
+            f"{key}: ya estaba {previous[key]!r} y ahora es {value!r}"
+            for key, value in ((key, str(value)) for key, value in config.items())
+            if key != "noise_list" and key in previous and previous[key] != value
+        ]
+        if differences:
+            raise SystemExit(
+                f"{path}: los parámetros no coinciden con los del barrido que ya está en esa "
+                "carpeta; usá otro --output-dir\n  " + "\n  ".join(differences)
+            )
+        if "noise_list" in previous:
+            config = dict(config)
+            config["noise_list"] = merge_noise_lists(previous["noise_list"], str(config["noise_list"]))
+
+    lines = ["# config"] + [f"{key}={value}" for key, value in sorted(config.items())]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def run_command(command: list[str], run: int) -> str:
@@ -149,10 +193,7 @@ def main() -> None:
         "epsilon": args.epsilon,
         "epochs": args.epochs,
     }
-    cfg_lines = ["# config"]
-    for k, v in sorted(top_cfg.items()):
-        cfg_lines.append(f"{k}={v}")
-    (output_dir / "config.txt").write_text("\n".join(cfg_lines) + "\n", encoding="utf-8")
+    write_top_config(output_dir / "config.txt", top_cfg)
 
     cluster_l = args.L if args.cluster_L is None else args.cluster_L
     cluster_rc = args.rc if args.cluster_rc is None else args.cluster_rc

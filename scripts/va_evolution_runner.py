@@ -28,6 +28,14 @@ from plot_va import plot_va_on_ax, read_va, scalar_average, slice_va
 from matplotlib.lines import Line2D
 
 from utils.plot_style import (
+    EVOLUTION_FONT_SCALE,
+    EVOLUTION_LINE_WIDTH,
+    EVOLUTION_SIZE,
+    EVOLUTION_TSTAR_COLOR,
+    MODEL_LABELS,
+    MODEL_LINESTYLES,
+    MODEL_LINEWIDTHS,
+    MODELS,
     SERIES,
     new_figure,
     place_legend_below,
@@ -35,18 +43,6 @@ from utils.plot_style import (
     scaled_style,
 )
 from utils.stationary import find_stationary
-
-
-MODELS = ("vicsek", "voter")
-MODEL_LABELS = {"vicsek": "Vicsek", "voter": "votante"}
-MODEL_LINESTYLES = {"vicsek": "-", "voter": (0, (12, 5))}
-MODEL_LINEWIDTHS = {"vicsek": 1.7, "voter": 1.0}
-
-
-EVOLUTION_SIZE = (11.0, 6.0)
-EVOLUTION_FONT_SCALE = 1.15
-EVOLUTION_LINE_WIDTH = 1.2
-EVOLUTION_TSTAR_COLOR = "#CC0000"
 
 
 def parse_t_stat(tokens: list[str] | None, models: list[str]) -> dict[str, int]:
@@ -95,13 +91,13 @@ def case_name(model: str, rho: float, eta: float) -> str:
 
 def run_case(args: argparse.Namespace, model: str, rho: float, eta: float) -> Path:
     case_dir = Path(args.output_dir) / case_name(model, rho, eta)
-    case_dir.mkdir(parents=True, exist_ok=True)
     va_path = case_dir / "va.txt"
     if args.plot_only:
         if not va_path.is_file():
             raise FileNotFoundError(f"{va_path}: no existe; ejecutar sin --plot-only")
         return va_path
 
+    case_dir.mkdir(parents=True, exist_ok=True)
     runs: list[dict[int, float]] = []
     runs_dir = case_dir / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
@@ -275,7 +271,7 @@ def plot_evolutions(
             (Line2D([], [], color="0.35", linestyle=MODEL_LINESTYLES[name],
                     linewidth=MODEL_LINEWIDTHS[name]),
              MODEL_LABELS[name])
-            for name in modelos
+            for name in (modelos if len(modelos) > 1 else [])
         ]
         if thresholds:
             fila_modelo.append(
@@ -483,13 +479,14 @@ def main() -> None:
         )
         # Además de la comparada, una por modelo: con ocho curvas encimadas cuesta
         # seguir una sola, y para explicar el comportamiento de cada modelo conviene
-        # verlo aparte.  La comparada es la que pide el punto (f).
+        # verlo aparte.  La comparada es la que pide el punto (f), así que las de un
+        # solo modelo van a una subcarpeta y no se mezclan con ella.
         if len(args.models) > 1:
             for model in args.models:
                 solo = [row for row in group if row["model"] == model]
                 plot_evolutions(
                     solo,
-                    output_dir / f"va_vs_t_rho{rho:g}_{model}{suffix}.png",
+                    output_dir / "por-modelo" / f"va_vs_t_rho{rho:g}_{model}{suffix}.png",
                     t_min=args.t_min,
                     t_max=args.t_max,
                     show_std=args.std,

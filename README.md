@@ -53,7 +53,8 @@ python3 scripts/animate_flock.py --traj data/traj.txt --out data/flock.gif -L 10
 
 Cada partícula se dibuja como un vector velocidad con origen en su posición, coloreado según el ángulo.
 
-Otros flags: `--fps` (cuadros por segundo), `--stride` (usa un cuadro guardado cada N), `--no-gif`, `--stills CARPETA` (escribe `t0.png`, `tmid.png`, `tlast.png`)
+
+Otros flags: `--fps` (cuadros por segundo), `--stride` (usa un cuadro guardado cada N), `--no-gif`, `--stills CARPETA` (escribe `t0.png`, `tmid.png`, `tlast.png`), `--frames CARPETA` + `--frames-prefix NOMBRE` (un PNG por cuadro, `NOMBRE_<i>.png`, para el `\animategraphics` de la presentación), `--gif-dpi` / `--frames-dpi` (resolución).
 
 ### Cálculo de clusters
 

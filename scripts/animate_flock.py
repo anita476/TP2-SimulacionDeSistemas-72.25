@@ -17,7 +17,7 @@ import sys
 from utils.plot_style import FONT_SIZE, SAVE_DPI, apply_academic_style, style_axes
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.animation import FuncAnimation, PillowWriter
+from PIL import Image
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.patches import Rectangle
@@ -99,10 +99,54 @@ def add_angle_colorbar(fig, ax):
     return cmap, norm
 
 
-def write_still(fig, path: Path) -> None:
+def write_still(fig, path: Path, dpi: int = SAVE_DPI, tight: bool = True) -> None:
+    r"""Guarda un cuadro suelto.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=SAVE_DPI, bbox_inches="tight", pad_inches=0.2, facecolor="white")
-    print(f"se escribió {path}")
+    if tight:
+        fig.savefig(path, dpi=dpi, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    else:
+        fig.savefig(path, dpi=dpi, facecolor="white")
+
+
+def render_rgb(fig) -> Image.Image:
+    fig.canvas.draw()
+    return Image.fromarray(np.asarray(fig.canvas.buffer_rgba())[:, :, :3].copy())
+
+
+def write_gif(fig, update, n_frames: int, path: str, fps: int, dpi: int) -> None:
+    """Escribe el GIF con una sola paleta para toda la secuencia.
+    """
+    if n_frames < 1:
+        sys.exit("la trayectoria no tiene cuadros: no hay GIF que escribir")
+    previous_dpi = fig.get_dpi()
+    fig.set_dpi(dpi)  # el tamaño va en pulgadas, así que esto no re-acomoda nada
+    try:
+        samples = []
+        for index in sorted({0, n_frames // 2, n_frames - 1}):
+            update(index)
+            samples.append(render_rgb(fig))
+        width, height = samples[0].size
+        montage = Image.new("RGB", (width, height * len(samples)))
+        for position, sample in enumerate(samples):
+            montage.paste(sample, (0, position * height))
+        palette = montage.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+
+        gif_frames = []
+        for index in range(n_frames):
+            update(index)
+            gif_frames.append(render_rgb(fig).quantize(palette=palette, dither=Image.Dither.NONE))
+    finally:
+        fig.set_dpi(previous_dpi)
+
+    gif_frames[0].save(
+        path,
+        save_all=True,
+        append_images=gif_frames[1:],
+        duration=round(1000 / max(fps, 1)),
+        loop=0,
+        disposal=1,
+    )
 
 
 def main() -> None:
@@ -113,11 +157,31 @@ def main() -> None:
     parser.add_argument("--fps", type=int, default=8, help="cuadros por segundo del GIF")
     parser.add_argument("--stride", type=int, default=1, help="usar un cuadro guardado cada stride")
     parser.add_argument("--stills", type=Path, default=None, help="carpeta para PNG de t inicial, medio y final")
+    parser.add_argument(
+        "--frames",
+        type=Path,
+        default=None,
+        help="carpeta para un PNG por cuadro (<prefijo>_<i>.png), para \\animategraphics",
+    )
+    parser.add_argument(
+        "--frames-prefix",
+        default=None,
+        help="prefijo de los PNG de --frames (por defecto, el nombre de la trayectoria)",
+    )
+    parser.add_argument("--frames-dpi", type=int, default=150, help="resolución de los PNG de --frames")
+    parser.add_argument(
+        "--gif-dpi",
+        type=int,
+        default=100,
+        help="resolución del GIF (la de las figuras deja archivos de decenas de MB)",
+    )
     parser.add_argument("--no-gif", action="store_true", help="no guardar el GIF")
     args = parser.parse_args()
 
     if args.stride < 1:
         sys.exit("--stride debe ser >= 1")
+    if args.frames_dpi < 1 or args.gif_dpi < 1:
+        sys.exit("--frames-dpi y --gif-dpi deben ser >= 1")
 
     frames = read_trajectory(args.traj)[:: args.stride]
     arrow_len = 0.1 * args.L
@@ -187,6 +251,10 @@ def main() -> None:
         time_text.set_text(rf"$t = {t}$ s")
         return dots, q, time_text
 
+
+    fig.canvas.draw()
+    fig.set_layout_engine("none")
+
     if args.stills is not None:
         n_frames = len(frames)
         stills = (
@@ -197,10 +265,17 @@ def main() -> None:
         for name, index in stills:
             update(index)
             write_still(fig, args.stills / name)
+            print(f"se escribió {args.stills / name}")
+
+    if args.frames is not None:
+        prefix = args.frames_prefix if args.frames_prefix is not None else Path(args.traj).stem
+        for index in range(len(frames)):
+            update(index)
+            write_still(fig, args.frames / f"{prefix}_{index}.png", dpi=args.frames_dpi, tight=False)
+        print(f"se escribieron {len(frames)} cuadros en {args.frames}/{prefix}_<i>.png (i = 0..{len(frames) - 1})")
 
     if not args.no_gif:
-        anim = FuncAnimation(fig, update, frames=len(frames), interval=1000 / max(args.fps, 1), blit=False)
-        anim.save(args.out, writer=PillowWriter(fps=args.fps))
+        write_gif(fig, update, len(frames), args.out, args.fps, args.gif_dpi)
         print(f"se escribió {args.out} ({len(frames)} cuadros)")
     plt.close(fig)
 

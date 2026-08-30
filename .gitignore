@@ -70,8 +70,31 @@ Testing/
 .cache/
 
 # Simulation outputs (keep directory via .gitkeep)
-data/*
+data/**
+!data/**/
 !data/.gitkeep
+
+# Excepcion: las figuras que docs/Steps.md para que se vean en GitHub!!
+!data/figuras/sistema.png
+!data/figuras/va_vs_eta.png
+!data/figuras/s_vs_eta.png
+!data/figuras/s_vs_t_vicsek_rho4.png
+!data/figuras/va_vs_s.png
+!data/figuras/por-modelo/va_vs_eta_vicsek.png
+!data/figuras/por-modelo/s_vs_eta_vicsek.png
+!data/va-evolution-b/va_vs_t_rho2.png
+!data/va-evolution-b/va_vs_t_rho4.png
+!data/va-evolution-b/va_vs_t_rho8.png
+!data/va-evolution-b/va_vs_t_rho2_sin_umbral.png
+!data/va-evolution-b/va_vs_t_rho4_sin_umbral.png
+!data/va-evolution-b/va_vs_t_rho8_sin_umbral.png
+!data/va-evolution-b/por-modelo/va_vs_t_rho4_vicsek.png
+!data/animaciones/stills/vicsek_rho4_eta0.1/tmid.png
+!data/animaciones/stills/vicsek_rho4_eta5.0/tmid.png
+!data/animaciones/stills/vicsek_rho2_eta1.0/tmid.png
+!data/animaciones/stills/vicsek_rho8_eta1.0/tmid.png
+!data/animaciones/stills/voter_rho4_eta0.1/tmid.png
+!data/animaciones/stills/voter_rho4_eta5.0/tmid.png
 
 # Python
 __pycache__/
@@ -94,5 +117,5 @@ Thumbs.db
 # According to assignment dont include documents in repo...
 theory/
 presentation/
-docs/Steps_old.md
-docs/stepsagain.md
+python_oldtp1/
+scripts/plotters/plot_rho.py

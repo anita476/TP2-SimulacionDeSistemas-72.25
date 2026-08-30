@@ -1,14 +1,86 @@
-# Reproducción de Resultados
+# Reproducción de resultados
 
-## Punto b: evolución temporal de $v_a$ y elección del umbral del estacionario
+## Parámetros fijos
 
-**Qué se eligió y por qué**
-* $\eta$: 0.1, 1.0, 3.0, 6.0 - uno bajo (ordenado), 2 medios y uno alto (desordenado) [TODO: elegir bien estos etas pero creo que estan bien]
-* $\rho$: 2, 4, 8 - para verificar si el criterio usado es aplicable para distintas densidades (solo se usa densidad = 4 para la presentación)
-* pasos: 10.000 pues el votante a $\rho=8$ sigue ordenándose hasta ~2500 s
-* modelos: los dos en la misma figura pues el punto (f) pide comparar el votante "en las figuras construidas en los puntos (b, c, d y e)"
+| Parámetro | Valor
+|---|---|
+| $L$ | 10 m |
+| $r_c$ | 1 m |
+| $v$ | $3\times10^{-2}$ m/s |
+| $\Delta t$ | 1 s |
+| $\rho$ | 2, 4, 8 m⁻² (da $N = \rho L^2 = 200$, 400 y 800)
+| ruido | uniforme en $[-\eta/2, \eta/2]$ |
+| realizaciones | 10 |
+| $T$ | $10^4$ pasos (se decide en el paso 2) |
+| $t^*$ | 3000 s (se decide en el paso 2 ) |
 
-**Primero: observar**
+Compilar el motor antes de todo:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
+```
+
+Deja `build/OffLattice-TP2` y `build/Cluster-TP2`.
+
+---
+
+## Paso 0 — Esquema del sistema
+
+Es el dibujo con $L$ y $r$ marcados **sobre el dibujo**
+
+```bash
+python3 scripts/plotters/plot_system.py
+```
+
+![esquema del sistema, con L y r marcados](../data/figuras/sistema.png)
+
+Escribe `data/figuras/sistema.png`. Las escalas son las reales ($L = 10$ m, $r = 1$ m) pero las partículas son de juguete. Con las 200 de verdad el anillo de radio $r$ desaparece entre las flechas y no se lee nada xd.
+
+---
+
+## Paso 1 — Punto (a): animaciones
+
+| Par | Casos | Qué cambia |
+|---|---|---|
+| Ruido | `vicsek_rho4_eta0.1`, `vicsek_rho4_eta5.0` | $\eta$, a $\rho=4$ |
+| Densidad | `vicsek_rho2_eta1.0`, `vicsek_rho8_eta1.0` | $\rho$, a $\eta=1$ |
+| Votante | `voter_rho4_eta0.1`, `voter_rho4_eta5.0` | la regla, contra el primer par |
+
+```bash
+python3 scripts/runners/animation_runner.py --output-dir data/animaciones
+```
+
+Deja, por cada caso, `data/animaciones/<caso>.txt` (trayectoria), `<caso>.gif` y `stills/<caso>/t{0,mid,last}.png`.
+
+
+| $\eta = 0.1$ rad (ordenado) | $\eta = 5$ rad (desordenado) |
+|---|---|
+| ![](../data/animaciones/stills/vicsek_rho4_eta0.1/tmid.png) | ![](../data/animaciones/stills/vicsek_rho4_eta5.0/tmid.png) |
+
+| $\rho = 2$ m⁻² | $\rho = 8$ m⁻² |
+|---|---|
+| ![](../data/animaciones/stills/vicsek_rho2_eta1.0/tmid.png) | ![](../data/animaciones/stills/vicsek_rho8_eta1.0/tmid.png) |
+
+| votante, $\eta = 0.1$ rad | votante, $\eta = 5$ rad |
+|---|---|
+| ![](../data/animaciones/stills/voter_rho4_eta0.1/tmid.png) | ![](../data/animaciones/stills/voter_rho4_eta5.0/tmid.png) |
+
+
+```bash
+python3 scripts/runners/animation_runner.py --output-dir data/animaciones \
+    --frames-dir presentation/figs/frames --plot-only --no-gif
+```
+
+---
+
+## Paso 2 — Punto (b): evolución temporal y elección de $t^*$
+
+* $\eta$ = 0.1, 1.0, 3.0, 6.0 rad: uno bajo (ordenado), dos medios y uno alto (desordenado).
+* $\rho$ = 2, 4, 8: para verificar que el mismo criterio sirve en las tres densidades.
+* $T = 10^4$ pasos: el votante a $\rho = 8$ con $\eta = 0.1$ sigue ordenándose hasta ~2500 s y hay que ver ese transitorio entero **y** dejar suficiente tiempo para el estacionario
+* Los dos modelos en la misma figura, porque (f) pide comparar el votante "en las figuras construidas en los puntos (b, c, d y e)"*.
+
+### 2.1 Primero: observar (sin $t^*$)
 
 ```bash
 python3 scripts/va_evolution_runner.py \
@@ -20,26 +92,25 @@ python3 scripts/va_evolution_runner.py \
 
 ![va vs t, rho = 4, sin umbral](../data/va-evolution-b/va_vs_t_rho4_sin_umbral.png)
 
-Las otras dos densidades, para verificar que el criterio sirve igual:
+Las otras dos densidades:
 
 | $\rho = 2$ | $\rho = 8$ |
 |---|---|
 | ![](../data/va-evolution-b/va_vs_t_rho2_sin_umbral.png) | ![](../data/va-evolution-b/va_vs_t_rho8_sin_umbral.png) |
 
-Otros archivos que deja en `data/va-evolution-b/`:
+Archivos que deja en `data/va-evolution-b/`:
 
-- `<modelo>_rho<ρ>_eta<η>/va.txt`: `t average_va std_va` entre las 10 corridas (sirve para este grafico, se puede prender el std con `--std` pero se apaga por default para que se vea mejor)
-- `<modelo>_rho<ρ>_eta<η>/runs/run-N.txt`: la serie de cada corrida por separado (sirve para calcular barra de error del escalar luego y para poder re-analizar sin re-simular todo)
-[TODO: el "auto" despues habria que sacarlo maybe?]
-- `stationary.txt`: `T`, `t_stat`, su origen (`ojo`/`auto`) y el escalar, acumulado entre corridas (sirve para comparar el algoritmo que fijamos antes)
+- `<modelo>_rho<ρ>_eta<η>/va.txt` — `t average_va std_va` entre las 10 corridas para dibujar esta figura. El desvío se puede prender con `--std`; está apagada por defecto.
+- `<modelo>_rho<ρ>_eta<η>/runs/run-N.txt` — la serie de cada corrida por separado. **No borrar**: de aca sale la barra de error del escalar y permite re-analizar sin volver a correr la simulacion.
+- `stationary.txt` — `T`, `t_stat`, su origen (`ojo` / `auto`) y el escalar, acumulado entre corridas. El `auto` es la estimación del algoritmo viejo (`utils/stationary.py`) y se deja para comparar contra el umbral elegido a ojo; si al final no se usa, se puede sacar.
 
-**Segundo: marcar $t^*$**
+### 2.2 Segundo: elegir $t^*$
 
-Es **un solo umbral para todos los $\eta$**: las curvas de ruido alto y bajo son la evidencia de que ese tiempo deja afuera todos los transitorios.
+El caso que manda es **el votante a $\rho = 8$ con $\eta = 0.1$**, que sigue subiendo hasta cerca de los 2500 s: es el transitorio más largo de todo el trabajo.
 
-El caso mas importante que manda es **el votante a $\rho=8$ con $\eta=0.1$**, que sigue subiendo hasta cerca de los 2500 s. El umbral es **uno solo para todos los $\eta$ y para los dos modelos**(? TODO: VERIFICAR).
+Se elige **$t^* = 3000$ s** = $0.3\,T$ pues deja ese transitorio afuera con margen y conserva el 70% de los pasos para promediar (701 muestras por corrida con `--stride 10`).
 
-Se elige $t^* = 3000$ s, es decir $0.3\,T$: deja ese transitorio afuera con margen y conserva el 70% de los pasos para promediar.
+### 2.3 Tercero: marcar el umbral
 
 ```bash
 python3 scripts/va_evolution_runner.py \
@@ -47,109 +118,182 @@ python3 scripts/va_evolution_runner.py \
     --rho 2 4 8 --eta 0.1 1.0 3.0 6.0 --t-stat 3000
 ```
 
-`--plot-only` reusa los `va.txt` y sólo redibuja, sin volver a simular. La figura que va a la presentación:
+`--plot-only` reusa los `va.txt` y sólo redibuja sin volver a simular.
 
 ![va vs t, rho = 4, con el umbral marcado](../data/va-evolution-b/va_vs_t_rho4.png)
 
-Las otras dos densidades, para verificar que el mismo $t^*$ deja afuera el transitorio
-también ahí. No van a la diapositiva; alcanza con decir que se verificó.
+Las otras dos densidades para que $t^*$ sirve:
 
 | $\rho = 2$ | $\rho = 8$ |
 |---|---|
 | ![](../data/va-evolution-b/va_vs_t_rho2.png) | ![](../data/va-evolution-b/va_vs_t_rho8.png) |
 
-Además, una figura por modelo de cada densidad (`va_vs_t_rho<ρ>_vicsek.png` y `va_vs_t_rho<ρ>_voter.png`). La que
-pide el punto (f) es la comparada.
+Y la de Vicsek solo (las de un solo modelo se escriben en `por-modelo/` para no mezclarse con las comparadas):
 
-## Punto c: $<v_a>$ en función del ruido
+![va vs t, rho = 4, sólo Vicsek](../data/va-evolution-b/por-modelo/va_vs_t_rho4_vicsek.png)
 
+---
 
+## Paso 3 — Punto (c): $\langle v_a \rangle$ en función del ruido
 
-## Punto g: tiempos de ejecución del CIM
+* $t^* = 3000$ s y $T = 10^4$ pasos: los mismos del punto b
+* `--stride 10`: acá interesa el escalar, no la forma del transitorio
+* $\eta$: **19 valores**: ver abajo
 
-Las densidades del TP2 (`ρ = 2, 4, 8` con `L = 10`) dan `N = 200, 400, 800`,
-valores que caen en el barrido de `N` del TP1. Se cronometra el CIM de esas
-tres simulaciones y se compara, en la misma máquina, con el CIM del TP1 al
-mismo `N`.
+### 3.1 La grilla de ruidos
 
-Compilar los dos TPs en Release (WSL):
+Se empezo con 13 valores elegidos con lo que ya se sabía del punto b: Vicsek cae entre 1 y 5, el votante abajo de 1. Grilla inicial:
 
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
-cmake -S "../TP1-SimulacionDeSistemas-72.25" -B "../TP1-SimulacionDeSistemas-72.25/build" -DCMAKE_BUILD_TYPE=Release
-cmake --build "../TP1-SimulacionDeSistemas-72.25/build" -j
+```
+0.1 0.25 0.5 0.75 1 1.5 2 2.5 3 3.5 4 5 6
+```
+Con estos ruidos, entre $\eta = 4$ y $\eta = 5$ la curva de Vicsek a $\rho = 4$ pasaba de $0.290$ a $0.068$ de forma abrupta y la transición era un segmento recto completamente recto.
+
+Por eso se agregaron seis ruidos, tres en cada caída:
+
+```
+0.15 0.2 0.35        (abre la caída del votante)
+4.25 4.5 4.75        (abre la de Vicsek)
 ```
 
-Medir y graficar:
+**La grilla final, que es la que usa el comando de abajo, son los 19 valores juntos:**
 
-```bash
-python3 scripts/cim_timing_runner.py \
-	--offlattice-executable build/OffLattice-TP2 \
-	--output-dir data/cim-timing \
-	-N 200 400 800 --steps 1000
-
-python3 scripts/plot_cim_times.py \
-	--input data/cim-timing/cim_times.txt \
-	--traces-dir data/cim-timing/traces \
-	--output data/cim-timing/tiempo_cim_vs_N.png
+```
+0.1 0.15 0.2 0.25 0.35 0.5 0.75 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.25 4.5 4.75 5.0 6.0
 ```
 
-Salida: `data/cim-timing/cim_times.txt`, `tiempo_cim_vs_N.png` y
-`tiempo_cim_vs_t.png`. El TP1 se corre con `L=20`, `M=13`, paredes y
-`--method cim`, que es lo que se usó en el punto 4 del TP1. Lo que se compara
-es el tiempo de una búsqueda (`build + sweep`), no el de un paso completo de
-Vicsek. Las figuras del TP1 usaban la columna `seconds` (búsqueda entera, un
-poco más que `build + sweep` porque incluye armar las listas de vecinas). A
-igual `N`, ρ_TP2 = 4 ρ_TP1.
+### 3.2 Correr el barrido
 
-## Primera Parte: Vicsek
-
-## Segunda Parte:
-
-
-------------
-
-
-### Tiempos de CIM (punto g)
-
-Las simulaciones del TP2 con `ρ = 2, 4, 8` y `L = 10` tienen `N = 200, 400, 800`,
-en el mismo rango que el barrido de `N` del TP1. `--cim_trace` escribe el tiempo de
-armar la grilla y de barrerla en cada paso. El runner corre esas tres simulaciones,
-repite el CIM del TP1 con el mismo `N` y `1000` búsquedas, y deja un agregado para
-la figura.
+Este mismo barrido se usa para (c), (d) y (e): el runner corre `Cluster-TP2` sobre cada trayectoria y deja `cluster_s.txt` al lado de `va.txt`.
 
 ```bash
-python3 scripts/cim_timing_runner.py \
-	--offlattice-executable build/OffLattice-TP2 \
-	--output-dir data/cim-timing \
-	-N 200 400 800 --steps 1000
-
-python3 scripts/plot_cim_times.py \
-	--input data/cim-timing/cim_times.txt \
-	--traces-dir data/cim-timing/traces \
-	--output data/cim-timing/tiempo_cim_vs_N.png
+for modelo in vicsek voter; do
+  for rho in 2 4 8; do
+    python3 scripts/runners/offlatice_noise_runner.py \
+        --offlattice-executable build/OffLattice-TP2 \
+        --cluster-executable build/Cluster-TP2 \
+        --output-dir data/noise-sweep-c/${modelo}_rho${rho} \
+        --model $modelo --rho $rho \
+        --noise-list 0.1 0.15 0.2 0.25 0.35 0.5 0.75 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.25 4.5 4.75 5.0 6.0 \
+        --runs 10 --steps 10000 --stride 10 \
+        -L 10 --rc 1 --speed 0.03
+    rm -rf data/noise-sweep-c/${modelo}_rho${rho}/eta*/trajectories \
+           data/noise-sweep-c/${modelo}_rho${rho}/eta*/cluster-results
+  done
+done
 ```
 
-Si el TP1 está compilado en el directorio hermano, el runner lo detecta solo. Si no:
+**OBS! dura aprox 1hr en total...**
+
+El runner deja un `config.txt` en la raíz de cada barrido (`model`, `rho`, `noise_list`, y todo lo demás) y otro adentro de cada `eta*/`.
+
+### 3.3 Cómo se calcula el escalar y su barra de error
+
+Cada corrida se promedia **por separado** desde $t^*$ hasta el final; el punto de la figura es el promedio de las 10 corridas y la barra es su desvío. Mide cuán reproducible es el escalar.
+
+### 3.4 Graficar
 
 ```bash
-python3 scripts/cim_timing_runner.py \
-	--offlattice-executable build/OffLattice-TP2 \
-	--tp1-executable ../TP1-SimulacionDeSistemas-72.25/build/CIM-TP1 \
-	--output-dir data/cim-timing
+python3 scripts/plotters/plot_noise_va.py \
+    --input-dir data/noise-sweep-c/vicsek_rho2 \
+    --input-dir data/noise-sweep-c/vicsek_rho4 \
+    --input-dir data/noise-sweep-c/vicsek_rho8 \
+    --input-dir data/noise-sweep-c/voter_rho2 \
+    --input-dir data/noise-sweep-c/voter_rho4 \
+    --input-dir data/noise-sweep-c/voter_rho8 \
+    --t-stat 3000 \
+    --output data/figuras/va_vs_eta.png
 ```
 
-La comparación es `build + sweep` de una búsqueda CIM, no el tiempo total de Vicsek.
-El TP1 se mide con sus parámetros originales (`L=20`, `r ∈ [0.23, 0.26]`, paredes,
-`M=13`, `--method cim`), en la misma máquina. A igual `N` la densidad del TP2 es
-cuatro veces la del TP1, porque `L` es la mitad.
+Output son tres figuras y un txt: la comparada, las dos de un solo modelo en `por-modelo/`, y `va_vs_eta.txt` con los escalares y sus errores.
+Otros flags: `--log` (escala logarítmica en la polarización), `--no-per-model` y `--per-model-dir`.
 
-Una sola corrida, sin el runner:
+![va vs eta, los dos modelos y las tres densidades](../data/figuras/va_vs_eta.png)
+
+Solo Viscek:
+
+![va vs eta, sólo Vicsek](../data/figuras/por-modelo/va_vs_eta_vicsek.png)
+
+Extracto de `data/figuras/va_vs_eta.txt`:
+
+| $\eta$ (rad) | Vicsek $\rho=2$ | $\rho=4$ | $\rho=8$ | votante $\rho=2$ | $\rho=4$ | $\rho=8$ |
+|---|---|---|---|---|---|---|
+| 0.1 | 0.999 | 0.999 | 1.000 | 0.912 | 0.877 | 0.789 |
+| 0.5 | 0.982 | 0.986 | 0.988 | 0.386 | 0.307 | 0.228 |
+| 1 | 0.932 | 0.946 | 0.953 | 0.209 | 0.156 | 0.112 |
+| 3 | 0.491 | 0.568 | 0.616 | 0.082 | 0.058 | 0.042 |
+| 4.5 | 0.107 | 0.141 | 0.208 | 0.052 | 0.037 | 0.026 |
+| 6 | 0.063 | 0.044 | 0.032 | 0.063 | 0.045 | 0.031 |
+
+**Conclusiones:**
+
+* **Vicsek**: $\langle v_a \rangle$ decrece de forma monótona con el ruido de $0.999$ para $\eta = 0.1$, hasta el desorden. Y a mismo ruido, se ordena **más** cuanto mayor es la densidad ($\eta = 3$: 0.49, 0.57 y 0.62 para $\rho = 2$, 4 y 8). Promediar sobre más vecinos cancela mejor el ruido.
+* **Votante**: tendencia similar pero un orden de magnitud antes en ruido. A $\eta = 1$ ya está en 0.21 / 0.16 / 0.11 cuando Vicsek todavía esta en 0.93–0.95. Cae en $\eta < 1$.
+* **Votante vs. Viscek**:la dependencia con la densidad es **la opuesta** a la de Vicsek: a ruido fijo se desordena más cuanto mayor es $\rho$ (0.91 -> 0.79 a $\eta = 0.1$). Copiar a un solo vecino elegido al azar no promedia por lo  que tener más vecinos no ayuda a alinearse y solo termina acelerando la mezcla de direcciones.
+-> Es decir al aumentar N (mayor densidad) se favorece el orden en Vicsek pero **no** para el votante.
+
+---
+
+## Paso 4 — Punto (d): clusters
 
 ```bash
-./build/OffLattice-TP2 --model vicsek --rho 2 --eta 0.1 --steps 1000 --cim_trace data/cim_trace.txt
+# evolución temporal de S
+python3 scripts/plotters/plot_sweep_evolution.py \
+    --input-dir data/noise-sweep-c/vicsek_rho4 \
+    --t-stat 3000 --eta 0.1 1.0 3.0 6.0 --observable s \
+    --output data/figuras/s_vs_t_vicsek_rho4.png
+
+# escalar vs ruido
+python3 scripts/plotters/plot_noise_s.py \
+    --input-dir data/noise-sweep-c/vicsek_rho2 --input-dir data/noise-sweep-c/vicsek_rho4 \
+    --input-dir data/noise-sweep-c/vicsek_rho8 --input-dir data/noise-sweep-c/voter_rho2 \
+    --input-dir data/noise-sweep-c/voter_rho4 --input-dir data/noise-sweep-c/voter_rho8 \
+    --t-stat 3000 \
+    --output data/figuras/s_vs_eta.png
 ```
 
-El archivo tiene columnas `t build_seconds sweep_seconds`. Al terminar, stderr
-imprime el promedio. Cluster-TP2 acepta el mismo `--cim_trace` sobre una trayectoria
-ya generada con `--out`.
+**Outputs**
+
+![S vs t, Vicsek rho = 4](../data/figuras/s_vs_t_vicsek_rho4.png)
+
+![S vs eta, los dos modelos](../data/figuras/s_vs_eta.png)
+
+La de Vicsek:
+
+![S vs eta, sólo Vicsek](../data/figuras/por-modelo/s_vs_eta_vicsek.png)
+
+**Conclusiones.** 
+[todo]
+
+---
+
+## Paso 5 — Punto (e): $v_a$ en función de $S$
+
+Un punto por cada $\eta$, con coordenadas $(\langle S \rangle, \langle v_a \rangle)$: los mismos escalares de los pasos c y d.
+
+```bash
+python3 scripts/plotters/plot_s_vs_va.py \
+    --input-dir data/noise-sweep-c/vicsek_rho2 --input-dir data/noise-sweep-c/vicsek_rho4 \
+    --input-dir data/noise-sweep-c/vicsek_rho8 --input-dir data/noise-sweep-c/voter_rho2 \
+    --input-dir data/noise-sweep-c/voter_rho4 --input-dir data/noise-sweep-c/voter_rho8 \
+    --t-stat 3000 \
+    --output data/figuras/va_vs_s.png
+```
+
+Flags: `--x va` para transponer ejes, y `--log` para la polarizacion logarítmica si es necesario.
+
+![va vs S](../data/figuras/va_vs_s.png)
+
+**Conclusiones**
+* Para todas las densidades: tanto para viscek como para votante, a polarizacion baja (ruido alto) y alta (ruido bajo), hay un unico cluster gigante porque estan todas las particulas repartidas uniformemente (ruido alto) o porque estan todas juntas en un solo cluster mas denso (ruido bajo). y para ruido intermedio es cuando se tiene un cluster menos denso para ambos modelos.
+* Viscek vs. votante: a polarizacion alta (ruido bajo) viscek mantiene la red mas conectada que votante. y en todos se ve que hay un "ruido de cruce" que pasado este el votante siempre termina teniendo la red mas conectada que viscek para la misma polarizacion. y este ruido de cruce baja con la densidad (eta=2.3, desndiad=2 -> eta=1.4, desndiad =4, -> eta=0.5, densidad=8).
+
+---
+
+## Paso 6 — Punto (f): comparación con el votante
+Reutilizar figuras de (b), (c), (d) y (e) ya que todas ya se corrieron con `--model voter` además de `vicsek`.
+
+---
+
+## Paso 7 — Punto (g): tiempos de ejecución del CIM
+todo
