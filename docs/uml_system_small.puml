@@ -1,5 +1,4 @@
 @startuml
-title TP2 - Diagrama de Sistema 
 
 class Particle {
   +double x
@@ -21,30 +20,18 @@ class NeighborLists {
   vector< vector<int> >
 }
 
-class Cluster {
-  <<type alias>>
-  vector<int>
-}
 
-class Clusters {
-  <<type alias>>
-  vector<Cluster>
-}
 
 class FlockingModule {
   +init_flocking(vector<Particle>&, double L, mt19937& rng)
   +step_vicsek(vector<Particle>&, const FlockingParams&, mt19937&, CimStats*)
   +step_voter(vector<Particle>&, const FlockingParams&, mt19937&, CimStats*)
-  +double polarization_va(const vector<Particle>&)
 }
 
 class NeighborModule {
   +int cim_max_grid_side(double L, double rc, double r_max)
-  +double max_radius(const vector<Particle>&)
-  +NeighborLists brute_force_neighbors(...)
   +NeighborLists cim_neighbors(...)
   +NeighborLists cim_linked_neighbors(...)
-  +CimStats cim_untimed_stats(...)
 }
 
 class ClusterModule {
@@ -73,8 +60,6 @@ FlockingParams --> FlockingModule
 NeighborModule --> NeighborLists
 
 NeighborLists --> ClusterModule
-ClusterModule --> Clusters
-Clusters --> Cluster
 
 OffLatticeMain --> NeighborModule
 
