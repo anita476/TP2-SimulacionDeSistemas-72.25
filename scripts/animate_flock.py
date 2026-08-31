@@ -12,7 +12,11 @@ from __future__ import annotations
 
 import argparse
 import math
+import shutil
+import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
 from utils.plot_style import FONT_SIZE, SAVE_DPI, apply_academic_style, style_axes
 import matplotlib.pyplot as plt
@@ -149,12 +153,44 @@ def write_gif(fig, update, n_frames: int, path: str, fps: int, dpi: int) -> None
     )
 
 
+def write_mp4(fig, update, n_frames: int, path: str, fps: int, dpi: int) -> None:
+    """Escribe un MP4 a partir de los mismos cuadros de la animación."""
+    if n_frames < 1:
+        sys.exit("la trayectoria no tiene cuadros: no hay MP4 que escribir")
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        raise SystemExit("ffmpeg no está instalado en el sistema; no se puede exportar MP4")
+
+    previous_dpi = fig.get_dpi()
+    fig.set_dpi(dpi)
+    try:
+        with tempfile.TemporaryDirectory(prefix="flock_frames_") as tmpdir:
+            tmp_path = Path(tmpdir)
+            for index in range(n_frames):
+                update(index)
+                frame = render_rgb(fig)
+                frame.save(tmp_path / f"frame_{index:04d}.png")
+            cmd = [
+                ffmpeg,
+                "-y",
+                "-framerate", str(max(fps, 1)),
+                "-i", str(tmp_path / "frame_%04d.png"),
+                "-pix_fmt", "yuv420p",
+                "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                str(path),
+            ]
+            subprocess.run(cmd, check=True)
+    finally:
+        fig.set_dpi(previous_dpi)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Anima trayectorias de bandada (vectores según el ángulo)")
     parser.add_argument("--traj", required=True, help="trayectoria generada por OffLattice-TP2 --out")
     parser.add_argument("--out", default="data/flock.gif", help="ruta del GIF de salida")
+    parser.add_argument("--mp4", default=None, help="ruta del MP4 de salida (por defecto: junto al GIF con el mismo nombre base)")
     parser.add_argument("-L", type=float, default=10.0, help="lado de la caja (límites de los ejes)")
-    parser.add_argument("--fps", type=int, default=8, help="cuadros por segundo del GIF")
+    parser.add_argument("--fps", type=int, default=8, help="cuadros por segundo de la animación")
     parser.add_argument("--stride", type=int, default=1, help="usar un cuadro guardado cada stride")
     parser.add_argument("--stills", type=Path, default=None, help="carpeta para PNG de t inicial, medio y final")
     parser.add_argument(
@@ -274,9 +310,17 @@ def main() -> None:
             write_still(fig, args.frames / f"{prefix}_{index}.png", dpi=args.frames_dpi, tight=False)
         print(f"se escribieron {len(frames)} cuadros en {args.frames}/{prefix}_<i>.png (i = 0..{len(frames) - 1})")
 
+    gif_path = Path(args.out)
+    gif_path.parent.mkdir(parents=True, exist_ok=True)
+    mp4_path = Path(args.mp4) if args.mp4 is not None else gif_path.with_suffix(".mp4")
+    mp4_path.parent.mkdir(parents=True, exist_ok=True)
+
     if not args.no_gif:
-        write_gif(fig, update, len(frames), args.out, args.fps, args.gif_dpi)
-        print(f"se escribió {args.out} ({len(frames)} cuadros)")
+        write_gif(fig, update, len(frames), str(gif_path), args.fps, args.gif_dpi)
+        print(f"se escribió {gif_path} ({len(frames)} cuadros)")
+
+    write_mp4(fig, update, len(frames), str(mp4_path), args.fps, args.gif_dpi)
+    print(f"se escribió {mp4_path} ({len(frames)} cuadros)")
     plt.close(fig)
 
 
