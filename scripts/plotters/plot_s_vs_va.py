@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Punto (e): polarizacion escalar en funcion de la fraccion del cluster mas grande
 
-Un punto = un valor de eta con coordenadas (<S>,<va>) promediadas desde t* (estacionario) hasta el final de la corrida
+Un punto = un valor de eta con coordenadas (<S>,<va>) calculadas sobre todas las muestras
+desde t* (estacionario) hasta el final de todas las realizaciones del barrido; la barra de
+error usa el desvío estándar de cada conjunto de muestras.
 
 t* se elige a ojo observando las evoluciones temporales y se usa con --t-stat [t*]
 """
@@ -30,8 +32,8 @@ def write_summary(path: Path, rows: list[tuple[Case, list[Point]]]) -> None:
     """Deja escalares en texto para poder citarlos sin volver a correr el plotter."""
     lines = [
         "# punto (e): cada fila es un punto de la figura va vs S",
-        "# los escalares se promedian desde t_stat (elegido a ojo) hasta el final de la corrida",
-        "# el error es el desvío entre realizaciones promediado en esa misma ventana",
+        "# los escalares se calculan sobre todas las muestras desde t_stat hasta el final de todas las realizaciones",
+        "# el error es el desvío estándar de esas muestras en el estacionario",
         "modelo rho eta t_stat S S_err va va_err",
     ]
     for case, points in rows:

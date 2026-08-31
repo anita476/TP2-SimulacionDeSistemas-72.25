@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Punto (d): fracción de la componente gigante en función del ruido.
 
-
+Para cada eta, el punto se calcula usando todas las muestras estacionarias de todas las
+realizaciones del barrido; el error de la barra es el desvío estándar de ese conjunto.
 
 Cada `--input-dir` es un barrido (un modelo y una densidad) y entra como una serie más de
 la misma figura, que es lo que pide el punto (f).
@@ -28,8 +29,8 @@ from utils.sweeps import (
 
 SUMMARY_HEADER = [
     "# punto (d): cada fila es un punto de la figura S vs eta",
-    "# S se promedia desde t_stat (elegido a ojo) hasta el final de cada corrida",
-    "# S_err es el desvío de ese promedio entre realizaciones",
+    "# S se calcula sobre todas las muestras desde t_stat hasta el final de todas las realizaciones",
+    "# S_err es el desvío estándar de esas muestras en el estacionario",
 ]
 
 

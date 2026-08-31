@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Punto (c): polarización escalar en función del ruido.
 
-Un punto = un valor de eta, promediado desde t* (estacionario) hasta el final de cada
-corrida; la barra de error es el desvío de ese promedio entre las realizaciones.
+Un punto = un valor de eta para el cual se toman todas las muestras desde t* (estacionario)
+hasta el final de todas las realizaciones del barrido; la barra de error es el desvío
+estándar de ese conjunto de muestras.
 
 t* se elige a ojo mirando las evoluciones temporales del punto (b) y se pasa con
 `--t-stat`. Cada `--input-dir` es un barrido (un modelo y una densidad) y entra como una
@@ -30,8 +31,8 @@ from utils.sweeps import (
 
 SUMMARY_HEADER = [
     "# punto (c): cada fila es un punto de la figura va vs eta",
-    "# va se promedia desde t_stat (elegido a ojo) hasta el final de cada corrida",
-    "# va_err es el desvío de ese promedio entre realizaciones",
+    "# va se calcula sobre todas las muestras desde t_stat hasta el final de todas las realizaciones",
+    "# va_err es el desvío estándar de esas muestras en el estacionario",
 ]
 
 

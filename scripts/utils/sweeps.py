@@ -114,28 +114,33 @@ def read_run_series(path: Path) -> tuple[list[int], list[float], list[float]]:
 def scalars_from_runs(case_dir: Path, t_stat: int) -> tuple[float, float, float, float] | None:
     """(va, va_err, S, S_err) de una carpeta de ruido, o None si no se puede calcular.
 
-    Cada corrida se promedia por separado desde t* hasta el final; el escalar es la media
-    de esos números y el error, su desvío. Eso mide cuán reproducible es el escalar, que es
-    lo que va en la barra.
+    Se toman todas las muestras desde t* hasta el final de todas las realizaciones; el
+    escalar es la media de ese conjunto y el error, su desvío estándar. Esto refleja la
+    dispersión real del sistema en el estacionario y evita que el error dependa solo del
+    promedio por corrida.
     """
     run_files = sorted((case_dir / "runs").glob("run-*.txt"))
-    if len(run_files) < 2:
-        print(f"se omite {case_dir}: hacen falta al menos 2 corridas en runs/ y hay {len(run_files)}")
+    if not run_files:
+        print(f"se omite {case_dir}: no hay corridas en runs/")
         return None
 
-    va_means, s_means = [], []
+    va_samples, s_samples = [], []
     for run_file in run_files:
         times, va_values, s_values = read_run_series(run_file)
         window = [(v, s) for t, v, s in zip(times, va_values, s_values) if t >= t_stat]
         if not window:
             print(f"se omite {case_dir}: no hay muestras con t >= {t_stat}")
             return None
-        va_means.append(statistics.fmean(v for v, _ in window))
-        s_means.append(statistics.fmean(s for _, s in window))
+        va_samples.extend(v for v, _ in window)
+        s_samples.extend(s for _, s in window)
+
+    if not va_samples or not s_samples:
+        print(f"se omite {case_dir}: no hay muestras estacionarias")
+        return None
 
     return (
-        statistics.fmean(va_means), statistics.stdev(va_means),
-        statistics.fmean(s_means), statistics.stdev(s_means),
+        statistics.fmean(va_samples), statistics.stdev(va_samples) if len(va_samples) > 1 else 0.0,
+        statistics.fmean(s_samples), statistics.stdev(s_samples) if len(s_samples) > 1 else 0.0,
     )
 
 
