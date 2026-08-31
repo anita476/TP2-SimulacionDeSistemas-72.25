@@ -27,7 +27,7 @@ BOX_LW = 1.4
 DIMENSION = "black"
 GHOST_ALPHA = 0.28
 
-ARROW_LEN = 0.62  # m; largo de la flecha de velocidad, solo indica la direccion
+ARROW_LEN = 0.62  # largo de la flecha de velocidad, solo indica la direccion
 DOT_SIZE = 46
 
 
@@ -113,8 +113,8 @@ def annotate_l(ax, box: float, offset: float) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-L", type=float, default=10.0, help="lado de la caja (m)")
-    parser.add_argument("-r", type=float, default=1.0, help="radio de interaccion (m)")
+    parser.add_argument("-L", type=float, default=10.0, help="lado de la caja")
+    parser.add_argument("-r", type=float, default=1.0, help="radio de interaccion")
     parser.add_argument("--seed", type=int, default=7, help="semilla de las particulas de relleno")
     parser.add_argument("--output", type=Path, default=Path("data/figuras/sistema.png"))
     args = parser.parse_args()

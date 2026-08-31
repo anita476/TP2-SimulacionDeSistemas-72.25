@@ -273,7 +273,7 @@ def plot_evolutions(
         modelos = [name for name in MODELS if any(row["model"] == name for row in rows)]
         fila_eta = [
             (Line2D([], [], color=eta_colors(len(etas))[index], linestyle="-", linewidth=1.7),
-             rf"$\eta={eta:g}$ rad")
+             rf"$\eta={eta:g}$")
             for index, eta in enumerate(etas)
         ]
         fila_modelo = [
@@ -395,7 +395,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--steps",
         type=int,
         default=10000,
-        help="el votante a ρ=8 tarda ~2500 s en llegar al estacionario; con menos pasos el transitorio se come media corrida",
+        help="el votante a ρ=8 tarda ~2500 en llegar al estacionario; con menos pasos el transitorio se come media corrida",
     )
     parser.add_argument("--stride", type=int, default=1)
     parser.add_argument("--runs", type=int, default=10)

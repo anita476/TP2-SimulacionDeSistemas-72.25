@@ -81,7 +81,7 @@ def main() -> None:
 
         color = SERIES[index % len(SERIES)]
         ax.plot(times, averages, color=color, linestyle=LINESTYLES[index % len(LINESTYLES)],
-                zorder=3, label=rf"$\eta={eta:g}$ rad")
+                zorder=3, label=rf"$\eta={eta:g}$")
         if not args.no_std:
             ax.fill_between(times,
                             [a - d for a, d in zip(averages, deviations)],
@@ -91,9 +91,9 @@ def main() -> None:
     # Una sola vertical para todas las series: el t* es uno por barrido, no uno por eta.
     if args.t_stat is not None:
         ax.axvline(args.t_stat, color="0.35", linestyle=":", linewidth=1.8, zorder=4,
-                   label=rf"inicio del estacionario ($t={args.t_stat}$ s)")
+                   label=rf"inicio del estacionario ($t={args.t_stat}$)")
 
-    style_axes(ax, "tiempo (s)", ylabel)
+    style_axes(ax, "tiempo", ylabel)
     ax.set_ylim(*args.ylim)
     ax.set_xlim(0, t_end)
     place_legend_below(fig, *ax.get_legend_handles_labels(), ncol=min(3, len(args.etas) + 1))

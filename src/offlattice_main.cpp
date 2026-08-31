@@ -201,9 +201,9 @@ int main(int argc, char *argv[]) {
     const double searches = static_cast<double>(steps);
     std::cerr << std::setprecision(17)
               << "CIM mean " << (cim_build_total + cim_sweep_total) / searches
-              << " s over " << steps << " searches | build "
-              << cim_build_total / searches << " s | sweep "
-              << cim_sweep_total / searches << " s\n";
+              << " over " << steps << " searches | build "
+              << cim_build_total / searches << " | sweep "
+              << cim_sweep_total / searches << "\n";
   }
 
   return 0;

@@ -81,7 +81,7 @@ def setup_axes(ax: plt.Axes, box: float) -> None:
     ax.set_xlim(-margin, box + margin)
     ax.set_ylim(-margin, box + margin)
     ax.set_aspect("equal")
-    style_axes(ax, "posición $x$ (m)", "posición $y$ (m)")
+    style_axes(ax, "posición $x$", "posición $y$")
     ax.grid(False)
     ax.add_patch(Rectangle((0, 0), box, box, fill=False, edgecolor=BOX_EDGE, linewidth=BOX_LW, zorder=10))
 
@@ -90,7 +90,7 @@ def add_angle_colorbar(fig, ax):
     cmap = plt.get_cmap("hsv")
     norm = Normalize(vmin=ANGLE_MIN, vmax=ANGLE_MAX)
     colorbar = fig.colorbar(ScalarMappable(norm=norm, cmap=cmap), ax=ax, shrink=0.82, pad=0.04)
-    colorbar.set_label("ángulo de la velocidad (rad)")
+    colorbar.set_label("ángulo de la velocidad")
     colorbar.set_ticks(list(ANGLE_TICKS), labels=list(ANGLE_TICK_LABELS))
     colorbar.minorticks_off()
     colorbar.ax.yaxis.set_major_locator(FixedLocator(list(ANGLE_TICKS)))
@@ -231,7 +231,7 @@ def main() -> None:
     time_text = ax.text(
         0.0,
         1.02,
-        rf"$t = {frames[0][0]}$ s",
+        rf"$t = {frames[0][0]}$",
         transform=ax.transAxes,
         va="bottom",
         ha="left",
@@ -248,7 +248,7 @@ def main() -> None:
         dots.set_array(angles)
         q.set_offsets(data[:, :2])
         q.set_UVC(ux, uy, angles)
-        time_text.set_text(rf"$t = {t}$ s")
+        time_text.set_text(rf"$t = {t}$")
         return dots, q, time_text
 
 

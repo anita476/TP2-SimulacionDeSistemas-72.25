@@ -101,7 +101,7 @@ def plot_va_on_ax(
         if vline_with_time:
             line_label = rf"{line_label} ($t={stationary_time}$)"
         ax.axvline(stationary_time, color=vline_color, linewidth=1.8, linestyle="--", zorder=4, label=line_label)
-    style_axes(ax, "tiempo (s)", "polarización")
+    style_axes(ax, "tiempo", "polarización")
     if apply_limits:
         ax.set_ylim(0.0, 1.02)
         if times:

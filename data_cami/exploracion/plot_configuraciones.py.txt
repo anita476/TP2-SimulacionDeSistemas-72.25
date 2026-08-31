@@ -141,8 +141,8 @@ def main() -> None:
                         textcoords="offset points", xytext=(0, 22 if filled else -30),
                         ha="center", fontsize=17, color="0.25")
 
-    ax.set_xlabel(("ruido (rad)" if en_eta else "polarización")
-                  + rf"   —   $\rho={rows[0][0].rho:g}$ m$^{{-2}}$", fontsize=19, labelpad=6)
+    ax.set_xlabel(("ruido" if en_eta else "polarización")
+                  + rf"   —   $\rho={rows[0][0].rho:g}$", fontsize=19, labelpad=6)
     ax.set_ylabel("fracción del clúster gigante", fontsize=18, labelpad=6)
     ax.grid(False)
     ax.tick_params(labelsize=17)
@@ -174,7 +174,7 @@ def main() -> None:
             if col == 0:
                 panel.set_ylabel(MODEL_LABEL[case.model], fontsize=18, labelpad=6)
 
-    fig.suptitle(rf"configuraciones en el instante $t={args.time}$ s de una corrida representativa"
+    fig.suptitle(rf"configuraciones en el instante $t={args.time}$ de una corrida representativa"
                  "\n" "cruces negras: partículas fuera de la componente gigante",
                  fontsize=16, y=0.995)
     args.output.parent.mkdir(parents=True, exist_ok=True)

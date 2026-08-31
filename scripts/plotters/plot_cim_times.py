@@ -114,7 +114,7 @@ def plot_vs_n(rows: list[dict[str, float | int | str]], output: Path) -> None:
             zorder=3,
             label=label,
         )
-    style_axes(ax, "cantidad de partículas", "tiempo de búsqueda CIM (s)")
+    style_axes(ax, "cantidad de partículas", "tiempo de búsqueda CIM")
     if plotted_n:
         ax.set_xticks(sorted(set(plotted_n)))
     apply_sci_axis(ax, "y")
@@ -141,7 +141,7 @@ def plot_vs_t(trace_dir: Path, output: Path) -> None:
             linewidth=1.4,
             label=rf"$N={particle_count}$",
         )
-    style_axes(ax, "tiempo (s)", "tiempo de búsqueda CIM (s)")
+    style_axes(ax, "tiempo", "tiempo de búsqueda CIM")
     apply_sci_axis(ax, "y")
     place_legend_below(ax, ncol=3)
     save_figure(fig, output)

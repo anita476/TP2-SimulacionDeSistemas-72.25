@@ -50,7 +50,7 @@ class Case(NamedTuple):
     def rho_label(self) -> str:
         """Sin el modelo: en una figura de un solo modelo, su nombre es constante y la
         corrección pide que los parámetros constantes vayan afuera, no en la leyenda."""
-        return rf"$\rho={self.rho:g}$ m$^{{-2}}$"
+        return rf"$\rho={self.rho:g}$"
 
 
 class Point(NamedTuple):
@@ -253,7 +253,7 @@ def plot_scalar_vs_eta(
             Line2D([], [], label=case.rho_label if un_solo_modelo else case.label, **style)
         )
 
-    style_axes(ax, "ruido (rad)", ylabel)
+    style_axes(ax, "ruido", ylabel)
     ax.set_xlim(0.0, None)
     ax.margins(x=0.05)
     if log:

@@ -131,7 +131,7 @@ def main() -> None:
             ax.axvline(t_stat, color=EVOLUTION_TSTAR_COLOR, linestyle=":",
                        linewidth=EVOLUTION_LINE_WIDTH * 1.5, zorder=4)
 
-        style_axes(ax, "tiempo (s)", ylabel)
+        style_axes(ax, "tiempo", ylabel)
         # Guia 1.9, y el mismo x10^3 que las figuras de va del ciclo del ruido.
         apply_sci_axis(ax, "x", scilimits=(3, 3))
         if ylim is not None:
@@ -143,10 +143,10 @@ def main() -> None:
         entradas: list[tuple[Line2D, str]] = []
         if color_por_eta:
             entradas += [(Line2D([], [], color=eta_colors(len(etas))[i], linestyle="-"),
-                          rf"$\eta={eta:g}$ rad") for i, eta in enumerate(etas)]
+                          rf"$\eta={eta:g}$") for i, eta in enumerate(etas)]
         elif len(rhos) > 1:
             entradas += [(Line2D([], [], color=COLOR_BY_RHO.get(rho, SERIES[i % len(SERIES)]),
-                                 linestyle="-"), rf"$\rho={rho:g}$ m$^{{-2}}$")
+                                 linestyle="-"), rf"$\rho={rho:g}$")
                          for i, rho in enumerate(rhos)]
         if len(modelos) > 1:
             entradas += [(Line2D([], [], color="0.35", linestyle=MODEL_LINESTYLES[name]),

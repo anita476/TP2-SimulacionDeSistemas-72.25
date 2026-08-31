@@ -116,7 +116,7 @@ def main() -> None:
         "(p. ej. presentation/figs/frames); si no se pasa, no se escribe",
     )
     parser.add_argument("-L", "--box-size", type=float, default=10.0)
-    parser.add_argument("--steps", type=int, default=500, help="pasos simulados (1 paso = 1 s)")
+    parser.add_argument("--steps", type=int, default=500, help="pasos simulados")
     parser.add_argument(
         "--stride",
         type=int,

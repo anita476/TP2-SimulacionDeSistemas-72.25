@@ -168,9 +168,9 @@ int main(int argc, char *argv[]) {
       const double searches = static_cast<double>(cim_searches);
       std::cerr << std::setprecision(17)
                 << "CIM mean " << (cim_build_total + cim_sweep_total) / searches
-                << " s over " << cim_searches << " searches | build "
-                << cim_build_total / searches << " s | sweep "
-                << cim_sweep_total / searches << " s\n";
+                << " over " << cim_searches << " searches | build "
+                << cim_build_total / searches << " | sweep "
+                << cim_sweep_total / searches << "\n";
     }
   } catch (const std::exception &error) {
     std::cerr << "error: " << error.what() << '\n';

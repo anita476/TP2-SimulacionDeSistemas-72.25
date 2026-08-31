@@ -4,15 +4,15 @@
 
 | Parámetro | Valor
 |---|---|
-| $L$ | 10 m |
-| $r_c$ | 1 m |
-| $v$ | $3\times10^{-2}$ m/s |
-| $\Delta t$ | 1 s |
-| $\rho$ | 2, 4, 8 m⁻² (da $N = \rho L^2 = 200$, 400 y 800)
+| $L$ | 10 |
+| $r_c$ | 1 |
+| $v$ | $3\times10^{-2}$ |
+| $\Delta t$ | 1 |
+| $\rho$ | 2, 4, 8 (da $N = \rho L^2 = 200$, 400 y 800)
 | ruido | uniforme en $[-\eta/2, \eta/2]$ |
 | realizaciones | 10 |
 | $T$ | $10^4$ pasos (se decide en el paso 2) |
-| $t^*$ | 3000 s (se decide en el paso 2 ) |
+| $t^*$ | 3000 (se decide en el paso 2 ) |
 
 Compilar el motor antes de todo:
 
@@ -34,7 +34,7 @@ python3 scripts/plotters/plot_system.py
 
 ![esquema del sistema, con L y r marcados](../data/figuras/sistema.png)
 
-Escribe `data/figuras/sistema.png`. Las escalas son las reales ($L = 10$ m, $r = 1$ m) pero las partículas son de juguete. Con las 200 de verdad el anillo de radio $r$ desaparece entre las flechas y no se lee nada xd.
+Escribe `data/figuras/sistema.png`. Las escalas son las reales ($L = 10$, $r = 1$) pero las partículas son de juguete. Con las 200 de verdad el anillo de radio $r$ desaparece entre las flechas y no se lee nada xd.
 
 ---
 
@@ -53,15 +53,15 @@ python3 scripts/runners/animation_runner.py --output-dir data/animaciones
 Deja, por cada caso, `data/animaciones/<caso>.txt` (trayectoria), `<caso>.gif` y `stills/<caso>/t{0,mid,last}.png`.
 
 
-| $\eta = 0.1$ rad (ordenado) | $\eta = 5$ rad (desordenado) |
+| $\eta = 0.1$ (ordenado) | $\eta = 5$ (desordenado) |
 |---|---|
 | ![](../data/animaciones/stills/vicsek_rho4_eta0.1/tmid.png) | ![](../data/animaciones/stills/vicsek_rho4_eta5.0/tmid.png) |
 
-| $\rho = 2$ m⁻² | $\rho = 8$ m⁻² |
+| $\rho = 2$ | $\rho = 8$ |
 |---|---|
 | ![](../data/animaciones/stills/vicsek_rho2_eta1.0/tmid.png) | ![](../data/animaciones/stills/vicsek_rho8_eta1.0/tmid.png) |
 
-| votante, $\eta = 0.1$ rad | votante, $\eta = 5$ rad |
+| votante, $\eta = 0.1$ | votante, $\eta = 5$ |
 |---|---|
 | ![](../data/animaciones/stills/voter_rho4_eta0.1/tmid.png) | ![](../data/animaciones/stills/voter_rho4_eta5.0/tmid.png) |
 
@@ -75,9 +75,9 @@ python3 scripts/runners/animation_runner.py --output-dir data/animaciones \
 
 ## Paso 2 — Punto (b): evolución temporal y elección de $t^*$
 
-* $\eta$ = 0.1, 1.0, 3.0, 6.0 rad: uno bajo (ordenado), dos medios y uno alto (desordenado).
+* $\eta$ = 0.1, 1.0, 3.0, 6.0: uno bajo (ordenado), dos medios y uno alto (desordenado).
 * $\rho$ = 2, 4, 8: para verificar que el mismo criterio sirve en las tres densidades.
-* $T = 10^4$ pasos: el votante a $\rho = 8$ con $\eta = 0.1$ sigue ordenándose hasta ~2500 s y hay que ver ese transitorio entero **y** dejar suficiente tiempo para el estacionario
+* $T = 10^4$ pasos: el votante a $\rho = 8$ con $\eta = 0.1$ sigue ordenándose hasta ~2500 y hay que ver ese transitorio entero **y** dejar suficiente tiempo para el estacionario
 * Los dos modelos en la misma figura, porque (f) pide comparar el votante "en las figuras construidas en los puntos (b, c, d y e)"*.
 
 ### 2.1 Primero: observar (sin $t^*$)
@@ -106,9 +106,9 @@ Archivos que deja en `data/va-evolution-b/`:
 
 ### 2.2 Segundo: elegir $t^*$
 
-El caso que manda es **el votante a $\rho = 8$ con $\eta = 0.1$**, que sigue subiendo hasta cerca de los 2500 s: es el transitorio más largo de todo el trabajo.
+El caso que manda es **el votante a $\rho = 8$ con $\eta = 0.1$**, que sigue subiendo hasta cerca de los 2500: es el transitorio más largo de todo el trabajo.
 
-Se elige **$t^* = 3000$ s** = $0.3\,T$ pues deja ese transitorio afuera con margen y conserva el 70% de los pasos para promediar (701 muestras por corrida con `--stride 10`).
+Se elige **$t^* = 3000$** = $0.3\,T$ pues deja ese transitorio afuera con margen y conserva el 70% de los pasos para promediar (701 muestras por corrida con `--stride 10`).
 
 ### 2.3 Tercero: marcar el umbral
 
@@ -136,7 +136,7 @@ Y la de Vicsek solo (las de un solo modelo se escriben en `por-modelo/` para no 
 
 ## Paso 3 — Punto (c): $\langle v_a \rangle$ en función del ruido
 
-* $t^* = 3000$ s y $T = 10^4$ pasos: los mismos del punto b
+* $t^* = 3000$ y $T = 10^4$ pasos: los mismos del punto b
 * `--stride 10`: acá interesa el escalar, no la forma del transitorio
 * $\eta$: **19 valores**: ver abajo
 
@@ -218,7 +218,7 @@ Solo Viscek:
 
 Extracto de `data/figuras/va_vs_eta.txt`:
 
-| $\eta$ (rad) | Vicsek $\rho=2$ | $\rho=4$ | $\rho=8$ | votante $\rho=2$ | $\rho=4$ | $\rho=8$ |
+| $\eta$ | Vicsek $\rho=2$ | $\rho=4$ | $\rho=8$ | votante $\rho=2$ | $\rho=4$ | $\rho=8$ |
 |---|---|---|---|---|---|---|
 | 0.1 | 0.999 | 0.999 | 1.000 | 0.912 | 0.877 | 0.789 |
 | 0.5 | 0.982 | 0.986 | 0.988 | 0.386 | 0.307 | 0.228 |

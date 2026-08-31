@@ -1,7 +1,7 @@
 """Estilo académico compartido para las figuras del TP2.
 
-Sigue la guía de presentaciones: sin título interno, ejes en palabras con
-unidades MKS, fuente ≥ 20, notación 10^{n} (no 1e-3) y puntos visibles en
+Sigue la guía de presentaciones: sin título interno, ejes en palabras,
+fuente ≥ 20, notación 10^{n} (no 1e-3) y puntos visibles en
 las curvas de input vs observable.
 Otros:
 - axis grids: off
