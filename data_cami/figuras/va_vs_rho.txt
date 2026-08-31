@@ -1,0 +1,12 @@
+# escalar va en función de la densidad, a ruido fijo
+# mismos puntos que el barrido en ruido, con el mismo t_stat
+modelo rho eta t_stat va va_err
+vicsek 2 0.5 3000 0.98196 0.00195058
+vicsek 4 0.5 3000 0.986325 0.000757993
+vicsek 8 0.5 3000 0.988179 0.000218565
+vicsek 2 1 3000 0.931997 0.00632477
+vicsek 4 1 3000 0.946417 0.00180684
+vicsek 8 1 3000 0.952898 0.000669245
+vicsek 2 3 3000 0.490684 0.0344191
+vicsek 4 3 3000 0.56818 0.00967918
+vicsek 8 3 3000 0.615529 0.00366669

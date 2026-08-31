@@ -1,0 +1,9 @@
+# chi = N [<va^2> - <va>^2] sobre las muestras del estacionario de las 10 corridas
+# eta_c es el ruido donde chi es maxima (Loscar 2021, Ec. 3)
+modelo rho eta_c chi_max
+vicsek 2 3 2.70408
+vicsek 4 3.5 3.31808
+vicsek 8 4.5 3.22564
+voter 2 0.25 7.4201
+voter 4 0.25 14.3436
+voter 8 0.15 29.2425

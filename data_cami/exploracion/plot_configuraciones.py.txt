@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Configuraciones del sistema en tres regímenes, junto a la curva que las explica.
+
+Arriba, la curva del clúster gigante de una densidad, con tres puntos marcados. Abajo,
+cómo se ven las partículas en esos tres puntos: en azul las de la componente gigante, con
+una cruz negra las que quedaron fuera. Sirve para mostrar por qué S tiene un mínimo en el
+régimen intermedio y vuelve a subir en los dos extremos.
+
+Necesita `trajectories/` y `cluster-results/` dentro de cada carpeta de ruido, que es lo
+que el runner deja y conviene borrar después del barrido. Si ya las borraste, hay que
+volver a correr el barrido de esa densidad.
+
+    python3 scripts/plotters/plot_configuraciones.py \
+        --input-dir data/noise-sweep/vicsek_rho2 --t-stat 500 \
+        --input-dir data/noise-sweep/voter_rho2  --t-stat 3000 \
+        --output data/figuras/configuraciones_rho2.png
+"""
+
+from __future__ import annotations
+
+import argparse
+import statistics
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import matplotlib.pyplot as plt
+
+from plot_s_vs_va import COLOR_BY_RHO, MODEL_LABEL, collect_points, load_case
+from utils.plot_style import BLUE, apply_academic_style
+
+
+def leer_cluster(path: Path, instante: int) -> tuple[float | None, set[int]]:
+    """S y los IDs de la componente gigante en un instante. Corta apenas lo pasa."""
+    actual, clusters, s = None, [], None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        if fields[0] == "t":
+            if actual == instante:
+                break
+            actual, clusters, s = int(fields[1]), [], None
+            continue
+        if actual != instante:
+            continue
+        if fields[0] == "S":
+            s = float(fields[1])
+        elif fields[0] == "cluster":
+            clusters.append([int(x) for x in fields[3:]])
+    return s, (set(max(clusters, key=len)) if clusters else set())
+
+
+def leer_posiciones(path: Path, instante: int) -> list[tuple[float, float]]:
+    posiciones, actual = [], None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        fields = line.split()
+        if fields and fields[0] == "t":
+            if actual == instante:
+                break
+            actual = int(fields[1])
+            continue
+        if actual == instante and len(fields) == 4:
+            posiciones.append((float(fields[0]), float(fields[1])))
+    return posiciones
+
+
+def corrida_representativa(case_dir: Path, instante: int) -> int:
+    """La corrida con S más cercano a la mediana de las diez en ese instante.
+
+    Tomar siempre run-0 puede dar un cuadro atípico: a rho = 2 la corrida 0 tenía 27
+    partículas sueltas cuando la mediana era 10.
+    """
+    valores = {}
+    for run_file in sorted((case_dir / "cluster-results").glob("run-*.txt")):
+        s, _ = leer_cluster(run_file, instante)
+        if s is not None:
+            valores[int(run_file.stem.split("-")[1])] = s
+    if not valores:
+        raise SystemExit(f"{case_dir}: no hay cluster-results con t = {instante}")
+    mediana = statistics.median(valores.values())
+    return min(valores, key=lambda run: abs(valores[run] - mediana))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--input-dir", dest="input_dirs", action="append", type=Path, required=True,
+                        metavar="DIR", help="barrido de una densidad y un modelo; repetible")
+    parser.add_argument("--t-stat", "--t_stat", dest="t_stats", action="append", type=int, required=True,
+                        metavar="T", help="inicio del estacionario; uno por --input-dir, o uno para todos")
+    parser.add_argument("--etas", type=float, nargs=3, default=None, metavar=("BAJO", "MEDIO", "ALTO"),
+                        help="los tres ruidos a retratar; por defecto el menor, el del mínimo de S y el mayor")
+    parser.add_argument("--time", type=int, default=3500, help="instante del cuadro, dentro del estacionario")
+    parser.add_argument("--x", choices=("eta", "va"), default="eta", help="qué va en el eje x de la curva")
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+
+    if len(args.t_stats) == 1:
+        t_stats = args.t_stats * len(args.input_dirs)
+    elif len(args.t_stats) == len(args.input_dirs):
+        t_stats = args.t_stats
+    else:
+        parser.error("tiene que haber un --t-stat por --input-dir, o uno solo para todos")
+
+    cases = [load_case(d, t) for d, t in zip(args.input_dirs, t_stats)]
+    rows = [(case, collect_points(case)) for case in cases]
+    rows = [(case, points) for case, points in rows if points]
+    if not rows:
+        raise SystemExit("ningún barrido aportó puntos")
+
+    color = COLOR_BY_RHO.get(rows[0][0].rho, BLUE)
+    en_eta = args.x == "eta"
+
+    apply_academic_style()
+    fig = plt.figure(figsize=(13.0, 4.2 + 3.4 * len(rows)))
+    gs = fig.add_gridspec(1 + len(rows), 3, height_ratios=[1.5] + [1] * len(rows),
+                          hspace=0.46, wspace=0.08)
+
+    ax = fig.add_subplot(gs[0, :])
+    seleccion = {}
+    for case, points in rows:
+        filled = case.model == "vicsek"
+        if args.etas is not None:
+            elegidos = [min(points, key=lambda p: abs(p.eta - e)) for e in args.etas]
+        else:
+            elegidos = [points[0], min(points, key=lambda p: p.s), points[-1]]
+        seleccion[case.model] = elegidos
+        ax.errorbar([p.eta if en_eta else p.va for p in points], [p.s for p in points],
+                    yerr=[p.s_err for p in points],
+                    xerr=None if en_eta else [p.va_err for p in points],
+                    color=color, marker="o", linestyle="-" if filled else "--",
+                    markerfacecolor=color if filled else "none", markeredgecolor=color,
+                    markeredgewidth=1.5, elinewidth=1.0, ecolor=color, alpha=1.0, zorder=3,
+                    label=MODEL_LABEL[case.model])
+        for i, p in enumerate(elegidos):
+            ax.plot(p.eta if en_eta else p.va, p.s, marker="o", ms=19,
+                    mfc="none", mec="0.25", mew=1.8, zorder=5)
+            ax.annotate("abc"[i] + ("" if filled else "'"), (p.eta if en_eta else p.va, p.s),
+                        textcoords="offset points", xytext=(0, 22 if filled else -30),
+                        ha="center", fontsize=17, color="0.25")
+
+    ax.set_xlabel(("ruido (rad)" if en_eta else "polarización")
+                  + rf"   —   $\rho={rows[0][0].rho:g}$ m$^{{-2}}$", fontsize=19, labelpad=6)
+    ax.set_ylabel("fracción del clúster gigante", fontsize=18, labelpad=6)
+    ax.grid(False)
+    ax.tick_params(labelsize=17)
+    for spine in ax.spines.values():
+        spine.set_color("black")
+    bajo = min(p.s - p.s_err for _, points in rows for p in points)
+    ax.set_ylim(max(0.0, bajo - 0.005), 1.003)
+    ax.legend(fontsize=17, loc="lower right")
+
+    for fila, (case, _) in enumerate(rows):
+        filled = case.model == "vicsek"
+        for col, punto in enumerate(seleccion[case.model]):
+            panel = fig.add_subplot(gs[fila + 1, col])
+            case_dir = case.directory / f"eta{punto.eta:g}"
+            run = corrida_representativa(case_dir, args.time)
+            s, gigante = leer_cluster(case_dir / f"cluster-results/run-{run}.txt", args.time)
+            posiciones = leer_posiciones(case_dir / f"trajectories/run-{run}.txt", args.time)
+            fuera = [i for i in range(len(posiciones)) if i not in gigante]
+            panel.scatter([posiciones[i][0] for i in gigante], [posiciones[i][1] for i in gigante],
+                          s=13 if case.rho <= 2 else 9, color=color, zorder=3)
+            panel.scatter([posiciones[i][0] for i in fuera], [posiciones[i][1] for i in fuera],
+                          s=40, color="black", marker="x", linewidths=1.6, zorder=4)
+            panel.set_xlim(0, 10); panel.set_ylim(0, 10); panel.set_aspect("equal")
+            panel.set_xticks([]); panel.set_yticks([])
+            etiqueta = "abc"[col] + ("" if filled else "'")
+            panel.set_xlabel(rf"({etiqueta}) $\eta={punto.eta:g}$ · $v_a={punto.va:.2f}$" "\n"
+                             rf"$S={s:.3f}$ · {len(fuera)} sueltas · corrida {run}",
+                             fontsize=14, labelpad=5)
+            if col == 0:
+                panel.set_ylabel(MODEL_LABEL[case.model], fontsize=18, labelpad=6)
+
+    fig.suptitle(rf"configuraciones en el instante $t={args.time}$ s de una corrida representativa"
+                 "\n" "cruces negras: partículas fuera de la componente gigante",
+                 fontsize=16, y=0.995)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(args.output, dpi=170, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    print(f"se escribió {args.output}")
+
+
+if __name__ == "__main__":
+    main()

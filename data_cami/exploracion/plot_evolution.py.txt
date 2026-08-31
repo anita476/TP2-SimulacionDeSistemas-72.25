@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Punto (b): evolución temporal del observable para varios ruidos.
+
+Una serie por eta, todas de la misma densidad y el mismo modelo, con la vertical que marca
+el inicio del estado estacionario. Es la figura que explicita desde cuándo se promedia
+para obtener el escalar, así que el t* que se le pasa acá tiene que ser el mismo que se le
+pasa después a los plotters de (c), (d) y (e).
+
+    python3 scripts/plotters/plot_evolution.py \
+        --input-dir data/noise-sweep/vicsek_rho4 \
+        --etas 0.1 1.0 3.0 5.0 --t-stat 500 \
+        --output data/figuras/va_vs_t_vicsek_rho4.png
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from utils.plot_style import SERIES, new_figure, place_legend_below, save_figure, style_axes
+
+LINESTYLES = ("-", "--", "-.", ":")
+
+# Nombre del archivo agregado y etiqueta del eje y, por observable.
+OBSERVABLE = {
+    "va": ("va.txt", "polarización"),
+    "s": ("cluster_s.txt", "fracción del clúster gigante"),
+}
+
+
+def read_series(path: Path) -> tuple[list[int], list[float], list[float]]:
+    """Lee `t promedio desvío` de un agregado. Sirve para va.txt y para cluster_s.txt:
+    sólo cambia el nombre de las columnas, no el formato."""
+    times, averages, deviations = [], [], []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines()[1:], 2):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        fields = line.split()
+        if len(fields) != 3:
+            raise ValueError(f"{path}:{number}: se esperaban tres columnas")
+        times.append(int(fields[0]))
+        averages.append(float(fields[1]))
+        deviations.append(float(fields[2]))
+    if not times:
+        raise ValueError(f"{path}: no hay filas de datos")
+    return times, averages, deviations
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--input-dir", type=Path, required=True, help="carpeta del barrido, con subcarpetas eta*")
+    parser.add_argument("--etas", type=float, nargs="+", required=True, help="los ruidos a superponer, 3 o 4")
+    parser.add_argument("--observable", choices=("va", "s"), default="va")
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--t-stat", "--t_stat", type=int, default=None,
+                        help="inicio del estacionario, elegido a ojo; sin el flag no se dibuja la vertical")
+    parser.add_argument("--t-max", "--t_max", type=int, default=None, help="recortar el eje de tiempos")
+    parser.add_argument("--ylim", type=float, nargs=2, default=(0.0, 1.0), metavar=("MIN", "MAX"),
+                        help="rango del eje y; S vive pegada a 1, así que ahí conviene algo como 0.9 1.0")
+    parser.add_argument("--no-std", action="store_true", help="ocultar la banda de desvío entre corridas")
+    args = parser.parse_args()
+
+    filename, ylabel = OBSERVABLE[args.observable]
+
+    fig, ax = new_figure(width=7.6, height=5.6)
+    t_end = 0
+    for index, eta in enumerate(args.etas):
+        path = args.input_dir / f"eta{eta:g}" / filename
+        if not path.is_file():
+            parser.error(f"{path}: no existe")
+        times, averages, deviations = read_series(path)
+        if args.t_max is not None:
+            keep = [i for i, t in enumerate(times) if t <= args.t_max]
+            times = [times[i] for i in keep]
+            averages = [averages[i] for i in keep]
+            deviations = [deviations[i] for i in keep]
+        t_end = max(t_end, times[-1])
+
+        color = SERIES[index % len(SERIES)]
+        ax.plot(times, averages, color=color, linestyle=LINESTYLES[index % len(LINESTYLES)],
+                zorder=3, label=rf"$\eta={eta:g}$ rad")
+        if not args.no_std:
+            ax.fill_between(times,
+                            [a - d for a, d in zip(averages, deviations)],
+                            [a + d for a, d in zip(averages, deviations)],
+                            color=color, alpha=0.15, linewidth=0, zorder=2)
+
+    # Una sola vertical para todas las series: el t* es uno por barrido, no uno por eta.
+    if args.t_stat is not None:
+        ax.axvline(args.t_stat, color="0.35", linestyle=":", linewidth=1.8, zorder=4,
+                   label=rf"inicio del estacionario ($t={args.t_stat}$ s)")
+
+    style_axes(ax, "tiempo (s)", ylabel)
+    ax.set_ylim(*args.ylim)
+    ax.set_xlim(0, t_end)
+    place_legend_below(fig, *ax.get_legend_handles_labels(), ncol=min(3, len(args.etas) + 1))
+    save_figure(fig, args.output)
+
+
+if __name__ == "__main__":
+    main()
