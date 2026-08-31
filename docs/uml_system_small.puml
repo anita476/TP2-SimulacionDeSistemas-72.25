@@ -1,0 +1,82 @@
+@startuml
+title TP2 - Diagrama de Sistema 
+
+class Particle {
+  +double x
+  +double y
+  +double r
+  +double theta
+}
+
+class FlockingParams {
+  +double L
+  +double rc
+  +double v
+  +double eta
+  +int M
+}
+
+class NeighborLists {
+  <<type alias>>
+  vector< vector<int> >
+}
+
+class Cluster {
+  <<type alias>>
+  vector<int>
+}
+
+class Clusters {
+  <<type alias>>
+  vector<Cluster>
+}
+
+class FlockingModule {
+  +init_flocking(vector<Particle>&, double L, mt19937& rng)
+  +step_vicsek(vector<Particle>&, const FlockingParams&, mt19937&, CimStats*)
+  +step_voter(vector<Particle>&, const FlockingParams&, mt19937&, CimStats*)
+  +double polarization_va(const vector<Particle>&)
+}
+
+class NeighborModule {
+  +int cim_max_grid_side(double L, double rc, double r_max)
+  +double max_radius(const vector<Particle>&)
+  +NeighborLists brute_force_neighbors(...)
+  +NeighborLists cim_neighbors(...)
+  +NeighborLists cim_linked_neighbors(...)
+  +CimStats cim_untimed_stats(...)
+}
+
+class ClusterModule {
+  +Clusters find_clusters(const NeighborLists&)
+  +double cluster_observable_s(const Clusters&)
+}
+
+class OffLatticeMain {
+  +main(int argc, char* argv[])
+}
+
+class ClusterMain {
+  +main(int argc, char* argv[])
+}
+
+OffLatticeMain --> FlockingModule
+OffLatticeMain --> ClusterModule
+
+ClusterMain --> NeighborModule
+ClusterMain --> ClusterModule
+
+Particle --> FlockingModule
+FlockingParams --> FlockingModule
+
+
+NeighborModule --> NeighborLists
+
+NeighborLists --> ClusterModule
+ClusterModule --> Clusters
+Clusters --> Cluster
+
+OffLatticeMain --> NeighborModule
+
+
+@enduml
