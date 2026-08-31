@@ -35,19 +35,19 @@ RHO_1_OVER_PI = "#F28E2B"
 SERIES = (BLUE, VERMILLION, GREEN, PURPLE, ORANGE, NAVY, RHO_1_OVER_3PI, RHO_1_OVER_2PI, RHO_1_OVER_PI)
 
 
-def eta_colors(n: int) -> list:
-    """n colores de una rampa morado -> magenta -> rosa para el ruido.
+# Viridis completo
+ETA_CMAP = "viridis"
+ETA_RANGE = (0.05, 0.92)
 
-    La corrección pide "del azul al rojo pasando por el verde", pero azul, verde y
-    bermellón son los tres colores fijos de la densidad (`COLOR_BY_RHO`): reusarlos
-    haría que el mismo color signifique densidad en una figura y ruido en la de al
-    lado.  Esta rampa no toca ninguno de los tres y cumple lo que la corrección
-    buscaba, que era que las series se distinguieran entre sí.
+
+def eta_colors(n: int) -> list:
+    """n colores de una rampa oscura -> clara para el ruido, legible con daltonismo.
     """
-    cmap = plt.get_cmap("plasma")
+    cmap = plt.get_cmap(ETA_CMAP)
+    lo, hi = ETA_RANGE
     if n == 1:
-        return [cmap(0.35)]
-    return [cmap(0.15 + 0.55 * i / (n - 1)) for i in range(n)]
+        return [cmap(0.5 * (lo + hi))]
+    return [cmap(lo + (hi - lo) * i / (n - 1)) for i in range(n)]
 MARKERS = ("o", "s", "D", "^", "v", "P")
 
 
@@ -60,6 +60,7 @@ MODEL_LINEWIDTHS = {"vicsek": 1.7, "voter": 1.7}
 EVOLUTION_SIZE = (9.0, 6.5)
 EVOLUTION_FONT_SCALE = 1.15
 EVOLUTION_LINE_WIDTH = 1.2
+
 # Negro: el rojo se confundia con la serie de rho = 4 (bermellon) y con el
 # extremo de la rampa de ruido.  La vertical no es un dato, es una referencia.
 EVOLUTION_TSTAR_COLOR = "black"
