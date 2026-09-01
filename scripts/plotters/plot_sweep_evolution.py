@@ -39,7 +39,9 @@ from utils.plot_style import (
 from utils.sweeps import (
     COLOR_BY_RHO,
     Case,
+    _rho_key,
     eta_dirs,
+    format_rho,
     load_case,
     pair_t_stats,
     read_aggregate,
@@ -116,7 +118,8 @@ def main() -> None:
         for serie in series:
             case = serie.case
             color = (eta_colors(len(etas))[etas.index(serie.eta)] if color_por_eta
-                     else COLOR_BY_RHO.get(case.rho, SERIES[rhos.index(case.rho) % len(SERIES)]))
+                     else _rho_key(COLOR_BY_RHO, case.rho,
+                                   SERIES[rhos.index(case.rho) % len(SERIES)]))
             ax.plot(serie.times, serie.values, color=color,
                     linestyle=MODEL_LINESTYLES[case.model] if len(modelos) > 1 else "-", zorder=3)
             # La banda es el desvío entre corridas, igual que en las figuras de va. Como
@@ -144,8 +147,8 @@ def main() -> None:
             entradas += [(Line2D([], [], color=eta_colors(len(etas))[i], linestyle="-"),
                           rf"$\eta={eta:g}$") for i, eta in enumerate(etas)]
         elif len(rhos) > 1:
-            entradas += [(Line2D([], [], color=COLOR_BY_RHO.get(rho, SERIES[i % len(SERIES)]),
-                                 linestyle="-"), rf"$\rho={rho:g}$")
+            entradas += [(Line2D([], [], color=_rho_key(COLOR_BY_RHO, rho, SERIES[i % len(SERIES)]),
+                                 linestyle="-"), rf"$\rho={format_rho(rho)}$")
                          for i, rho in enumerate(rhos)]
         if len(modelos) > 1:
             entradas += [(Line2D([], [], color="0.35", linestyle=MODEL_LINESTYLES[name]),

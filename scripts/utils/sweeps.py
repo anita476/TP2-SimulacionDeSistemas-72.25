@@ -9,6 +9,7 @@ plotter.
 
 from __future__ import annotations
 
+import math
 import statistics
 from pathlib import Path
 from typing import Callable, NamedTuple
@@ -33,22 +34,49 @@ from utils.plot_style import MODEL_LABELS as MODEL_LABEL  # una sola fuente para
 
 # color y marker -> densidad (usamos circulos, cuadrados y rombos para distintas densidades como lo hacen en el paper de la biblio de FVM)
 # relleno y trazo -> modelo (vicsek vs. votante)
+_RHO_1_OVER_3PI = 1.0 / (3.0 * math.pi)
+_RHO_1_OVER_2PI = 1.0 / (2.0 * math.pi)
+_RHO_1_OVER_PI = 1.0 / math.pi
 COLOR_BY_RHO = {
-    1.0 / (3.0 * 3.141592653589793): RHO_1_OVER_3PI,
-    1.0 / (2.0 * 3.141592653589793): RHO_1_OVER_2PI,
-    1.0 / 3.141592653589793: RHO_1_OVER_PI,
+    _RHO_1_OVER_3PI: RHO_1_OVER_3PI,
+    _RHO_1_OVER_2PI: RHO_1_OVER_2PI,
+    _RHO_1_OVER_PI: RHO_1_OVER_PI,
     2.0: BLUE,
     4.0: VERMILLION,
     8.0: GREEN,
 }
 MARKER_BY_RHO = {
-    1.0 / (3.0 * 3.141592653589793): "o",
-    1.0 / (2.0 * 3.141592653589793): "s",
-    1.0 / 3.141592653589793: "D",
+    _RHO_1_OVER_3PI: "o",
+    _RHO_1_OVER_2PI: "s",
+    _RHO_1_OVER_PI: "D",
     2.0: "o",
     4.0: "s",
     8.0: "D",
 }
+_RHO_MATH = {
+    _RHO_1_OVER_3PI: r"1/3\pi",
+    _RHO_1_OVER_2PI: r"1/2\pi",
+    _RHO_1_OVER_PI: r"1/\pi",
+}
+
+
+def _rho_key(mapping, rho: float, default=None):
+    """Lookup por densidad, con holgura para el redondeo de config.txt."""
+    if rho in mapping:
+        return mapping[rho]
+    for key, value in mapping.items():
+        if math.isclose(rho, key, rel_tol=0.0, abs_tol=1e-9):
+            return value
+    return default
+
+
+def format_rho(rho: float) -> str:
+    pretty = _rho_key(_RHO_MATH, rho)
+    if pretty is not None:
+        return pretty
+    if abs(rho - round(rho)) <= 1e-9:
+        return str(int(round(rho)))
+    return f"{rho:g}"
 
 
 class Case(NamedTuple):
@@ -67,7 +95,7 @@ class Case(NamedTuple):
     def rho_label(self) -> str:
         """Sin el modelo: en una figura de un solo modelo, su nombre es constante y la
         corrección pide que los parámetros constantes vayan afuera, no en la leyenda."""
-        return rf"$\rho={self.rho:g}$"
+        return rf"$\rho={format_rho(self.rho)}$"
 
 
 class Point(NamedTuple):
@@ -224,11 +252,11 @@ def read_aggregate(path: Path, name: str) -> tuple[list[int], list[float], list[
 
 def series_style(case: Case) -> dict[str, object]:
     """Color y símbolo por densidad, relleno y trazo por modelo."""
-    color = COLOR_BY_RHO.get(case.rho, BLUE)
+    color = _rho_key(COLOR_BY_RHO, case.rho, BLUE)
     filled = case.model == "vicsek"
     return dict(
         color=color,
-        marker=MARKER_BY_RHO.get(case.rho, "o"),
+        marker=_rho_key(MARKER_BY_RHO, case.rho, "o"),
         linestyle="-" if filled else (0, (1.8, 1.8)),
         markerfacecolor=color if filled else "none",
         markeredgecolor=color,

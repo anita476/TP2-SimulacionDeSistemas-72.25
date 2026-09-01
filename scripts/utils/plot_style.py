@@ -16,6 +16,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection, PathCollection, PolyCollection
 
 FONT_SIZE = 20
 FIGURE_SIZE = (6.5, 5.4)
@@ -150,19 +151,158 @@ def scaled_style(font_scale: float = 1.0, line_width: float | None = None):
         yield
 
 
-def place_legend_below(target, *args, ncol: int = 1, **kwargs):
-    """Leyenda debajo de los ejes, sin tapar la etiqueta x.
+_CORNERS = ("upper right", "upper left", "lower right", "lower left")
+# Celdas de 1/GRID en coordenadas de los ejes.  Si la caja pisa alguna, esa esquina no vale:
+# una leyenda alta con una curva fina da fracción baja y igual tapa los puntos.
+_GRID = 32
+_OCC_PAD = 0.03
+# Un recorte de una celda no justifica mandar la leyenda afuera; tapar una curva sí.
+_OCC_HITS_MAX = 3
 
-    `loc='outside lower center'` solo existe en leyendas de figura; si
-    llega un Axes, se mueven los handles al Figure.
+
+def _legend_axes(target):
+    if hasattr(target, "transAxes"):
+        return target
+    if getattr(target, "axes", None):
+        return target.axes[0]
+    raise TypeError("place_legend_below: se esperaba un Axes o un Figure")
+
+
+def _add_cell(cells: set[tuple[int, int]], x: float, y: float) -> None:
+    if 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0:
+        cells.add((min(_GRID - 1, int(x * _GRID)), min(_GRID - 1, int(y * _GRID))))
+
+
+def _add_segment(cells: set[tuple[int, int]], x0: float, y0: float, x1: float, y1: float) -> None:
+    n = max(1, int(max(abs(x1 - x0), abs(y1 - y0)) * _GRID) + 1)
+    for k in range(n + 1):
+        t = k / n
+        _add_cell(cells, x0 + t * (x1 - x0), y0 + t * (y1 - y0))
+
+
+def _polyline_to_axes(ax, xs, ys, xlim, ylim, to_axes) -> list[tuple[float, float]]:
+    n = min(len(xs), len(ys))
+    if n == 0:
+        return []
+    step = max(1, n // 400)
+    xy = []
+    for i in range(0, n, step):
+        x, y = float(xs[i]), float(ys[i])
+        if x != x or y != y:
+            continue
+        if not (xlim[0] <= x <= xlim[1] and ylim[0] <= y <= ylim[1]):
+            continue
+        xy.append((x, y))
+    if not xy:
+        return []
+    axes_xy = to_axes.transform(ax.transData.transform(xy))
+    return [(float(x), float(y)) for x, y in axes_xy]
+
+
+def _rasterize(cells: set[tuple[int, int]], axes_xy: list[tuple[float, float]]) -> None:
+    if not axes_xy:
+        return
+    _add_cell(cells, *axes_xy[0])
+    for prev, cur in zip(axes_xy, axes_xy[1:]):
+        _add_segment(cells, prev[0], prev[1], cur[0], cur[1])
+
+
+def _occupancy_cells(ax) -> set[tuple[int, int]]:
+    """Celdas que ya tienen una curva, barra o banda, en coordenadas de los ejes."""
+    xlim, ylim = ax.get_xlim(), ax.get_ylim()
+    to_axes = ax.transAxes.inverted()
+    cells: set[tuple[int, int]] = set()
+
+    def take(xs, ys) -> None:
+        _rasterize(cells, _polyline_to_axes(ax, xs, ys, xlim, ylim, to_axes))
+
+    for line in ax.lines:
+        xs, ys = line.get_data()
+        # axvline / t*: dos puntos.  No son una serie y ensucian las esquinas.
+        if min(len(xs), len(ys)) <= 2:
+            continue
+        take(xs, ys)
+    for collection in ax.collections:
+        if isinstance(collection, PolyCollection):
+            for path in collection.get_paths():
+                verts = path.vertices
+                take(verts[:, 0], verts[:, 1])
+            continue
+        # LineCollection son las barras de error: finas y atrás; no empujan la leyenda.
+        if isinstance(collection, LineCollection):
+            continue
+        if not isinstance(collection, PathCollection):
+            continue
+        data = collection.get_offsets()
+        if getattr(data, "size", 0) == 0:
+            continue
+        take(data[:, 0], data[:, 1])
+    return cells
+
+
+def _box_hits(cells: set[tuple[int, int]], bbox) -> int:
+    x0 = max(0.0, bbox.x0 - _OCC_PAD)
+    x1 = min(1.0, bbox.x1 + _OCC_PAD)
+    y0 = max(0.0, bbox.y0 - _OCC_PAD)
+    y1 = min(1.0, bbox.y1 + _OCC_PAD)
+    i0 = min(_GRID - 1, max(0, int(x0 * _GRID)))
+    i1 = min(_GRID - 1, max(0, int(x1 * _GRID)))
+    j0 = min(_GRID - 1, max(0, int(y0 * _GRID)))
+    j1 = min(_GRID - 1, max(0, int(y1 * _GRID)))
+    return sum(1 for i in range(i0, i1 + 1) for j in range(j0, j1 + 1) if (i, j) in cells)
+
+
+def _best_legend_corner(ax, handles, labels, **leg_kwargs) -> str | None:
+    """Esquina cuya caja no pisa datos; None si todas tapan."""
+    fig = ax.figure
+    fig.canvas.draw()
+    cells = _occupancy_cells(ax)
+    to_axes = ax.transAxes.inverted()
+    scored: list[tuple[int, str]] = []
+    for loc in _CORNERS:
+        legend = ax.legend(handles, labels, loc=loc, **leg_kwargs)
+        legend.set_in_layout(False)
+        fig.canvas.draw()
+        bbox = legend.get_window_extent().transformed(to_axes)
+        legend.remove()
+        scored.append((0 if not cells else _box_hits(cells, bbox), loc))
+    scored.sort(key=lambda item: (item[0], _CORNERS.index(item[1])))
+    hits, loc = scored[0]
+    if hits > _OCC_HITS_MAX:
+        return None
+    return loc
+
+
+def place_legend_below(target, *args, ncol: int = 1, **kwargs):
+    """Leyenda adentro, en la esquina que menos tape; si no hay, debajo de los ejes.
+
+    `loc='outside lower center'` solo existe en leyendas de figura; el fallback
+    mueve los handles al Figure cuando llega un Axes.
     """
+    kwargs.setdefault("frameon", True)
+    ax = _legend_axes(target)
+    if not args:
+        args = ax.get_legend_handles_labels()
+    handles, labels = args[0], args[1]
+    n_labels = sum(1 for label in labels if label)
+    inside_kwargs = dict(kwargs)
+    inside_kwargs.pop("loc", None)
+    inside_kwargs.setdefault("borderaxespad", 0.35)
+    inside_kwargs.setdefault("labelspacing", 0.25)
+    inside_kwargs.setdefault("framealpha", 0.92)
+    for ncol_try in ((1, 2) if n_labels >= 4 else (1,)):
+        inside_kwargs["ncol"] = ncol_try
+        corner = _best_legend_corner(ax, handles, labels, **inside_kwargs)
+        if corner is not None:
+            inside_kwargs["loc"] = corner
+            legend = ax.legend(handles, labels, **inside_kwargs)
+            legend.set_in_layout(False)
+            legend.set_zorder(20)
+            return legend
     kwargs.setdefault("loc", "outside lower center")
     kwargs.setdefault("ncol", ncol)
-    kwargs.setdefault("frameon", True)
-    if not args and hasattr(target, "get_legend_handles_labels"):
-        args = target.get_legend_handles_labels()
-        target = target.figure
-    return target.legend(*args, **kwargs)
+    host = ax.figure
+    return host.legend(handles, labels, **kwargs)
 
 
 def style_axes(ax, xlabel: str, ylabel: str) -> None:
