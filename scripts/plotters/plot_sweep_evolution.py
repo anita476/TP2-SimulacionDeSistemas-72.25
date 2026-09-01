@@ -119,13 +119,12 @@ def main() -> None:
                      else COLOR_BY_RHO.get(case.rho, SERIES[rhos.index(case.rho) % len(SERIES)]))
             ax.plot(serie.times, serie.values, color=color,
                     linestyle=MODEL_LINESTYLES[case.model] if len(modelos) > 1 else "-", zorder=3)
-            # La banda es el desvío entre corridas, igual que en las figuras de va.
-            # Recortada a [0, 1] como en plot_va: los dos observables están acotados
-            # ahí, y sin recortar la banda dibuja S > 1, que no existe.
-            ax.fill_between(serie.times,
-                            [max(0.0, v - d) for v, d in zip(serie.values, serie.stds)],
-                            [min(1.0, v + d) for v, d in zip(serie.values, serie.stds)],
-                            color=color, alpha=0.18, linewidth=0, zorder=2)
+            # La banda es el desvío entre corridas, igual que en las figuras de va. Como
+            # los observables están acotados en [0, 1], recortamos la banda antes de dibujar
+            # para que no se vea "saliendo" del rango físico ni deje un padding visible.
+            lower = [max(0.0, min(1.0, v - d)) for v, d in zip(serie.values, serie.stds)]
+            upper = [max(0.0, min(1.0, v + d)) for v, d in zip(serie.values, serie.stds)]
+            ax.fill_between(serie.times, lower, upper, color=color, alpha=0.18, linewidth=0, zorder=2)
 
         for t_stat in umbrales:
             ax.axvline(t_stat, color=EVOLUTION_TSTAR_COLOR, linestyle=":",
@@ -134,8 +133,8 @@ def main() -> None:
         style_axes(ax, "tiempo", ylabel)
         # Guia 1.9, y el mismo x10^3 que las figuras de va del ciclo del ruido.
         apply_sci_axis(ax, "x", scilimits=(3, 3))
-        if ylim is not None:
-            ax.set_ylim(*ylim)
+        ax.set_ylim(0.0, 1.0)
+        ax.margins(y=0.0)
         ax.set_xlim(min(s.times[0] for s in series), max(s.times[-1] for s in series))
 
         # La leyenda sólo nombra lo que varía: los parámetros constantes van al costado de

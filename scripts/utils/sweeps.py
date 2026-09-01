@@ -260,10 +260,21 @@ def plot_scalar_vs_eta(
 
     for case, points in rows:
         style = series_style(case)
+        xs = [point.eta for point in points]
+        ys = [value(point) for point in points]
+        lower_errs = []
+        upper_errs = []
+        for point in points:
+            y = value(point)
+            err = error(point)
+            low = max(0.0, min(1.0, y - err))
+            high = max(0.0, min(1.0, y + err))
+            lower_errs.append(max(0.0, y - low))
+            upper_errs.append(max(0.0, high - y))
         ax.errorbar(
-            [point.eta for point in points],
-            [value(point) for point in points],
-            yerr=[error(point) for point in points],
+            xs,
+            ys,
+            yerr=[lower_errs, upper_errs],
             ecolor=style["color"], elinewidth=1.1, capsize=3.0, zorder=3, **style,
         )
         handles.append(
@@ -284,10 +295,10 @@ def plot_scalar_vs_eta(
     elif ylim is not None:
         ax.set_ylim(*ylim)
     else:
-        low = min(value(point) - error(point) for _, points in rows for point in points)
-        high = max(value(point) + error(point) for _, points in rows for point in points)
-        margin = max(0.004, 0.08 * (high - low))
-        ax.set_ylim(low - margin, min(1.0, high) + margin)
+        # Mantener las barras dentro del rango físico [0, 1] sin dejar un padding
+        # visible por encima del límite superior cuando el observable es acotado.
+        ax.set_ylim(0.0, 1.0)
+        ax.margins(y=0.0)
 
     if un_solo_modelo:
         orden, ncol = handles, len(handles)
