@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Genera los seis casos de animación del punto (a): simulación + GIF + PNG.
+"""Genera los casos de animación del punto (a): simulación + GIF + PNG.
 """
 
 from __future__ import annotations
 
 import argparse
+import math
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -28,12 +29,20 @@ CASES: tuple[Case, ...] = (
     # ciclo del ruido
     Case("vicsek_rho4_eta0.1", "vicsek", 4.0, 0.1),
     Case("vicsek_rho4_eta5.0", "vicsek", 4.0, 5.0),
-    # ciclo de la densidad
+    # ciclo de la densidad con los valores bajos de referencia del barrido
+    Case("vicsek_rho1_3pi_eta1.0", "vicsek", 1.0 / (3.0 * math.pi), 1.0),
+    Case("vicsek_rho1_2pi_eta1.0", "vicsek", 1.0 / (2.0 * math.pi), 1.0),
+    Case("vicsek_rho1_pi_eta1.0", "vicsek", 1.0 / math.pi, 1.0),
     Case("vicsek_rho2_eta1.0", "vicsek", 2.0, 1.0),
     Case("vicsek_rho8_eta1.0", "vicsek", 8.0, 1.0),
     # ciclo del votante
     Case("voter_rho4_eta0.1", "voter", 4.0, 0.1),
     Case("voter_rho4_eta5.0", "voter", 4.0, 5.0),
+    Case("voter_rho1_3pi_eta1.0", "voter", 1.0 / (3.0 * math.pi), 1.0),
+    Case("voter_rho1_2pi_eta1.0", "voter", 1.0 / (2.0 * math.pi), 1.0),
+    Case("voter_rho1_pi_eta1.0", "voter", 1.0 / math.pi, 1.0),
+    Case("voter_rho2_eta1.0", "voter", 2.0, 1.0),
+    Case("voter_rho8_eta1.0", "voter", 8.0, 1.0),
 )
 
 
@@ -76,6 +85,8 @@ def animate(case: Case, args: argparse.Namespace, traj: Path, output_dir: Path) 
         str(traj),
         "--out",
         str(output_dir / f"{case.name}.gif"),
+        "--mp4",
+        str(output_dir / f"{case.name}.mp4"),
         "-L",
         f"{args.box_size:g}",
         "--fps",
@@ -116,11 +127,11 @@ def main() -> None:
         "(p. ej. presentation/figs/frames); si no se pasa, no se escribe",
     )
     parser.add_argument("-L", "--box-size", type=float, default=10.0)
-    parser.add_argument("--steps", type=int, default=500, help="pasos simulados")
+    parser.add_argument("--steps", type=int, default=3500, help="pasos simulados")
     parser.add_argument(
         "--stride",
         type=int,
-        default=2,
+        default=10,
         help="guardar un cuadro cada stride pasos (500/2 deja los 251 cuadros que "
         "espera el \\animategraphics de la presentación)",
     )

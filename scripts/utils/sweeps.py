@@ -20,6 +20,9 @@ from utils.plot_style import (
     BLUE,
     GREEN,
     MODELS,
+    RHO_1_OVER_3PI,
+    RHO_1_OVER_2PI,
+    RHO_1_OVER_PI,
     VERMILLION,
     new_figure,
     place_legend_below,
@@ -30,8 +33,22 @@ from utils.plot_style import MODEL_LABELS as MODEL_LABEL  # una sola fuente para
 
 # color y marker -> densidad (usamos circulos, cuadrados y rombos para distintas densidades como lo hacen en el paper de la biblio de FVM)
 # relleno y trazo -> modelo (vicsek vs. votante)
-COLOR_BY_RHO = {2.0: BLUE, 4.0: VERMILLION, 8.0: GREEN}
-MARKER_BY_RHO = {2.0: "o", 4.0: "s", 8.0: "D"}
+COLOR_BY_RHO = {
+    1.0 / (3.0 * 3.141592653589793): RHO_1_OVER_3PI,
+    1.0 / (2.0 * 3.141592653589793): RHO_1_OVER_2PI,
+    1.0 / 3.141592653589793: RHO_1_OVER_PI,
+    2.0: BLUE,
+    4.0: VERMILLION,
+    8.0: GREEN,
+}
+MARKER_BY_RHO = {
+    1.0 / (3.0 * 3.141592653589793): "o",
+    1.0 / (2.0 * 3.141592653589793): "s",
+    1.0 / 3.141592653589793: "D",
+    2.0: "o",
+    4.0: "s",
+    8.0: "D",
+}
 
 
 class Case(NamedTuple):
