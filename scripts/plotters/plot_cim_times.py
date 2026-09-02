@@ -15,8 +15,8 @@ from utils.plot_style import MARKERS, SERIES, apply_sci_axis, new_figure, place_
 
 
 SOURCE_STYLE = {
-    "tp2": (SERIES[0], MARKERS[0], "-", "TP2, contorno periódico"),
-    "tp1": (SERIES[1], MARKERS[1], "--", "TP1, paredes"),
+    "tp2": (SERIES[0], MARKERS[0], "-", "TP2"),
+    "tp1": (SERIES[1], MARKERS[1], "--", "TP1"),
 }
 
 
@@ -114,9 +114,10 @@ def plot_vs_n(rows: list[dict[str, float | int | str]], output: Path) -> None:
             zorder=3,
             label=label,
         )
-    style_axes(ax, "cantidad de partículas", "tiempo de búsqueda CIM")
+    style_axes(ax, "cantidad de partículas", "tiempo de búsqueda CIM (s)")
     if plotted_n:
         ax.set_xticks(sorted(set(plotted_n)))
+    ax.set_ylim(bottom=0)
     apply_sci_axis(ax, "y")
     place_legend_below(ax, ncol=1)
     save_figure(fig, output)
@@ -142,6 +143,7 @@ def plot_vs_t(trace_dir: Path, output: Path) -> None:
             label=rf"$N={particle_count}$",
         )
     style_axes(ax, "tiempo", "tiempo de búsqueda CIM")
+    ax.set_ylim(bottom=0)
     apply_sci_axis(ax, "y")
     place_legend_below(ax, ncol=3)
     save_figure(fig, output)

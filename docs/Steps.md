@@ -298,4 +298,21 @@ Reutilizar figuras de (b), (c), (d) y (e) ya que todas ya se corrieron con `--mo
 ---
 
 ## Paso 7 — Punto (g): tiempos de ejecución del CIM
-todo
+Correr las pruebas:
+```bash
+python3 scripts/runners/cim_timing_runner.py \
+  --output-dir data/cim-timing \
+  --offlattice-executable build/OffLattice-TP2 \
+  --tp1-executable ../TP1-SimulacionDeSistemas-72.25/build/CIM-TP1 \
+  -N 200 400 800 \
+  --runs 1 \
+  --steps 10000 \
+  --model vicsek \
+  --eta 0.1 \
+  --speed 0.03 \
+  --rc 1.0
+```
+Graficar:
+```bash
+python3 scripts/plotters/plot_cim_times.py --input data/cim-timing/cim_times.txt --traces data/cim-timing/traces --output data/figuras_final/cim_comparison.png
+```

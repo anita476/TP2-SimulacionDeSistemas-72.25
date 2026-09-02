@@ -52,8 +52,18 @@ def parse_tp1_csv(path: Path, n: int) -> tuple[list[float], list[float], float, 
     matched = [row for row in rows if int(row["N"]) == n]
     if not matched:
         raise ValueError(f"{path}: no TP1 rows for N={n}")
-    builds = [float(row["build_seconds"]) for row in matched]
-    sweeps = [float(row["sweep_seconds"]) for row in matched]
+
+    has_split_columns = {"build_seconds", "sweep_seconds"}.issubset(matched[0].keys())
+    if has_split_columns:
+        builds = [float(row["build_seconds"]) for row in matched]
+        sweeps = [float(row["sweep_seconds"]) for row in matched]
+    elif "seconds" in matched[0]:
+        total = [float(row["seconds"]) for row in matched]
+        builds = total[:]
+        sweeps = [0.0 for _ in total]
+    else:
+        raise ValueError(f"{path}: TP1 CSV does not contain known timing columns (build_seconds/sweep_seconds or seconds)")
+
     box = float(matched[0]["L"])
     grid = int(matched[0]["M"])
     periodic = int(matched[0]["periodic"])
