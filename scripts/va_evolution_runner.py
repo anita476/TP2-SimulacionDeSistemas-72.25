@@ -36,6 +36,8 @@ from utils.plot_style import (
     EVOLUTION_LINE_WIDTH,
     EVOLUTION_SIZE,
     EVOLUTION_TSTAR_COLOR,
+    EVOLUTION_TSTAR_LINESTYLE,
+    EVOLUTION_TSTAR_LINEWIDTH,
     MODEL_LABELS,
     MODEL_LINESTYLES,
     MODEL_LINEWIDTHS,
@@ -255,8 +257,8 @@ def plot_evolutions(
             ax.axvline(
                 threshold,
                 color=EVOLUTION_TSTAR_COLOR,
-                linewidth=EVOLUTION_LINE_WIDTH * 1.5,
-                linestyle=":",
+                linewidth=EVOLUTION_TSTAR_LINEWIDTH,
+                linestyle=EVOLUTION_TSTAR_LINESTYLE,
                 zorder=4,
                 # La leyenda solo lleva lo que varia (correccion): t* es constante
                 # y se explica al costado de la figura, en la diapositiva.

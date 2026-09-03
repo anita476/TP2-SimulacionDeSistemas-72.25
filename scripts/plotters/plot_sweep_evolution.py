@@ -18,6 +18,7 @@ from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import matplotlib
 from matplotlib.lines import Line2D
 
 from utils.plot_style import (
@@ -25,6 +26,8 @@ from utils.plot_style import (
     EVOLUTION_LINE_WIDTH,
     EVOLUTION_SIZE,
     EVOLUTION_TSTAR_COLOR,
+    EVOLUTION_TSTAR_LINESTYLE,
+    EVOLUTION_TSTAR_LINEWIDTH,
     MODEL_LABELS,
     MODEL_LINESTYLES,
     SERIES,
@@ -91,6 +94,11 @@ def main() -> None:
     parser.add_argument("--eta", type=float, nargs="+", default=None,
                         help="ruidos a dibujar (por defecto: todos los del barrido)")
     parser.add_argument("--observable", choices=tuple(OBSERVABLES), default="va")
+    parser.add_argument("--label-t-stat", "--label_t_stat", nargs="?", const="simbolo",
+                        default=None, choices=("simbolo", "valor"), metavar="MODO",
+                        help="rotular cada vertical al lado de la línea: 'simbolo' escribe t* y "
+                             "el número va al epígrafe (la convención); 'valor' escribe t*=N para "
+                             "la diapositiva, que no tiene epígrafe.  Sin el flag va muda")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -130,8 +138,9 @@ def main() -> None:
             ax.fill_between(serie.times, lower, upper, color=color, alpha=0.18, linewidth=0, zorder=2)
 
         for t_stat in umbrales:
-            ax.axvline(t_stat, color=EVOLUTION_TSTAR_COLOR, linestyle=":",
-                       linewidth=EVOLUTION_LINE_WIDTH * 1.5, zorder=4)
+            ax.axvline(t_stat, color=EVOLUTION_TSTAR_COLOR,
+                       linestyle=EVOLUTION_TSTAR_LINESTYLE,
+                       linewidth=EVOLUTION_TSTAR_LINEWIDTH, zorder=4)
 
         style_axes(ax, "tiempo", ylabel)
         # Guia 1.9, y el mismo x10^3 que las figuras de va del ciclo del ruido.
@@ -139,6 +148,23 @@ def main() -> None:
         ax.set_ylim(0.0, 1.0)
         ax.margins(y=0.0)
         ax.set_xlim(min(s.times[0] for s in series), max(s.times[-1] for s in series))
+        # El rótulo va pegado a la línea y no en la leyenda: la vertical no es una serie.
+        # Abajo, porque en estas figuras las curvas se amontonan arriba y ahí el rótulo
+        # quedaría tapado; y del lado de adentro si t* cae cerca del borde derecho.
+        if args.label_t_stat:
+            x0, x1 = ax.get_xlim()
+            for t_stat in umbrales:
+                a_la_derecha = (t_stat - x0) < 0.85 * (x1 - x0)
+                texto = rf"$t^*={t_stat:g}$" if args.label_t_stat == "valor" else r"$t^*$"
+                ax.annotate(
+                    texto,
+                    xy=(t_stat, 0.04), xycoords=("data", "axes fraction"),
+                    xytext=(7 if a_la_derecha else -7, 0), textcoords="offset points",
+                    ha="left" if a_la_derecha else "right", va="center",
+                    color=EVOLUTION_TSTAR_COLOR,
+                    fontsize=matplotlib.rcParams["xtick.labelsize"],
+                    zorder=5,
+                )
 
         # La leyenda sólo nombra lo que varía: los parámetros constantes van al costado de
         # la figura, en la diapositiva.
@@ -153,7 +179,8 @@ def main() -> None:
         if len(modelos) > 1:
             entradas += [(Line2D([], [], color="0.35", linestyle=MODEL_LINESTYLES[name]),
                           MODEL_LABELS[name]) for name in modelos]
-        # t* NO va en la leyenda: es constante y se explica al costado de la figura.
+        # t* nunca va en la leyenda: no es una serie.  Con --label-t-stat se rotula
+        # al lado de su propia vertical, arriba del set_xlim.
         # Handle largo: el trazo del votante es un guión de 12 pt y con el ancho por
         # defecto la muestra de la leyenda no llega a mostrarlo.
         place_legend_below(fig, [h for h, _ in entradas], [l for _, l in entradas],

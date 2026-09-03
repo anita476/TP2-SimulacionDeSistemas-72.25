@@ -110,7 +110,7 @@ def main() -> None:
             linewidth=1.8,
             linestyle="--",
             zorder=4,
-            label=rf"inicio del estacionario ($t={stationary_time}$)",
+            label=rf"$t^*={stationary_time}$",
         )
     style_axes(ax, "tiempo", "fracción de la componente gigante")
     ax.set_ylim(0.0, 1.0)

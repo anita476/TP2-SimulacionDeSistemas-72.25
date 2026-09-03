@@ -61,9 +61,12 @@ EVOLUTION_SIZE = (9.0, 6.5)
 EVOLUTION_FONT_SCALE = 1.15
 EVOLUTION_LINE_WIDTH = 1.2
 
-# Negro: el rojo se confundia con la serie de rho = 4 (bermellon) y con el
-# extremo de la rampa de ruido.  La vertical no es un dato, es una referencia.
-EVOLUTION_TSTAR_COLOR = "black"
+# Gris oscuro y mas fina que las curvas: la vertical no es un dato, es una referencia,
+# y una linea de referencia se dibuja mas liviana que aquello a lo que se refiere.  El
+# rojo quedo descartado antes porque se confundia con la serie de rho = 4 (bermellon).
+EVOLUTION_TSTAR_COLOR = "0.35"
+EVOLUTION_TSTAR_LINESTYLE = (0, (5.5, 3.5))
+EVOLUTION_TSTAR_LINEWIDTH = EVOLUTION_LINE_WIDTH * 0.9
 
 _APPLIED = False
 
